@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - uses: actions/cache@v4
         with:
           path: |
@@ -44,8 +44,8 @@ jobs:
             ~/.cargo/git
             ~/.cache/uv
             ~/Library/Caches/uv
-            zorto/target
-          key: wheel-${{ matrix.target }}-${{ hashFiles('zorto/**/Cargo.lock', 'uv.lock') }}
+            target
+          key: wheel-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock', 'uv.lock') }}
           restore-keys: wheel-${{ matrix.target }}-
       - run: bin/setup
       - run: rustup target add ${{ matrix.target }}
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - uses: actions/cache@v4
         with:
           path: ~/.cache/uv

@@ -1,0 +1,3 @@
+base_url = "https://example.com"
+title = "My Site"
+generate_feed = true

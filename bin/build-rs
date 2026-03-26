@@ -3,6 +3,6 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 echo "Building zorto..."
-cargo build --manifest-path zorto/Cargo.toml "$@"
+cargo build "$@"
 
 echo "Rust build complete!"

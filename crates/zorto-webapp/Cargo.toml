@@ -1,0 +1,23 @@
+[package]
+name = "zorto-webapp"
+version = "0.9.1"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Cody <cody@dkdc.dev>"]
+description = "HTMX CMS webapp for zorto"
+license = "MIT"
+repository = "https://github.com/lostmygithubaccount/zorto"
+homepage = "https://github.com/lostmygithubaccount/zorto"
+
+[dependencies]
+zorto-core = { path = "../zorto-core", version = "0.9.1", default-features = false }
+axum = { version = "0.8", features = ["ws", "multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync", "fs"] }
+anyhow = "1"
+open = "5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+walkdir = "2"
+slug = "0.1"
+chrono = "0.4"

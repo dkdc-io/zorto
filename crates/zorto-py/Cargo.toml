@@ -1,0 +1,16 @@
+[workspace]
+
+[package]
+name = "zorto-py"
+version = "0.9.1"
+edition = "2024"
+authors = ["Cody <cody@dkdc.dev>"]
+license = "MIT"
+
+[lib]
+name = "zorto_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+zorto = { path = "../zorto-cli", default-features = false, features = ["python"] }
+pyo3 = { version = "0.28", features = ["extension-module", "abi3-py311"] }

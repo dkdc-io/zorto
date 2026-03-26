@@ -2,7 +2,13 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+echo "Publishing zorto-core to crates.io..."
+cargo publish -p zorto-core
+
+echo "Waiting for crates.io to index zorto-core..."
+sleep 30
+
 echo "Publishing zorto to crates.io..."
-cargo publish --manifest-path zorto/Cargo.toml
+cargo publish -p zorto
 
 echo "Published!"

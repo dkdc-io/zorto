@@ -1,0 +1,14 @@
+[workspace]
+members = [
+    "crates/zorto-core",
+    "crates/zorto-cli",
+    "crates/zorto-webapp",
+    "crates/zorto-app",
+]
+exclude = ["crates/zorto-py"]
+resolver = "2"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1

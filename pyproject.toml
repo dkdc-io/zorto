@@ -1,23 +1,30 @@
 [project]
 name = "zorto"
-version = "0.9.0"
+version = "0.9.1"
 description = "A fast static site generator with executable code blocks"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [{ name = "Cody", email = "cody@dkdc.dev" }]
+readme = "README.md"
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/lostmygithubaccount/zorto"
+Repository = "https://github.com/lostmygithubaccount/zorto"
+Issues = "https://github.com/lostmygithubaccount/zorto/issues"
 
 [project.scripts]
 zorto = "zorto:main"
 
 [dependency-groups]
-dev = ["maturin>=1.0,<2.0", "ruff>=0.9", "pytest>=8"]
+dev = ["maturin>=1.0,<2.0", "ruff>=0.9", "ty>=0.0.19", "pytest>=8"]
 
 [tool.maturin]
 module-name = "zorto.core"
 python-packages = ["zorto"]
-python-source = "src"
-manifest-path = "zorto-py/Cargo.toml"
+python-source = "py"
+manifest-path = "crates/zorto-py/Cargo.toml"
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
@@ -26,6 +33,7 @@ build-backend = "maturin"
 [tool.uv]
 cache-keys = [
     { file = "pyproject.toml" },
-    { file = "zorto/**/*.rs" },
-    { file = "zorto-py/**/*.rs" },
+    { file = "crates/zorto-core/**/*.rs" },
+    { file = "crates/zorto-cli/**/*.rs" },
+    { file = "crates/zorto-py/**/*.rs" },
 ]

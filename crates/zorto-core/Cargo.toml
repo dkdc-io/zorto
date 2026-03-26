@@ -1,0 +1,51 @@
+[package]
+name = "zorto-core"
+version = "0.9.1"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Cody <cody@dkdc.dev>"]
+description = "Core library for zorto — a fast static site generator with executable code blocks"
+license = "MIT"
+repository = "https://github.com/lostmygithubaccount/zorto"
+homepage = "https://github.com/lostmygithubaccount/zorto"
+keywords = ["static-site", "cms", "markdown", "tera"]
+categories = ["web-programming"]
+readme = "../../README.md"
+
+[features]
+default = ["embed-python"]
+embed-python = ["python", "pyo3/auto-initialize"]
+python = ["dep:pyo3"]
+
+[dependencies]
+# Templating
+tera = "1"
+
+# Markdown
+pulldown-cmark = { version = "0.12", features = ["simd"] }
+
+# Syntax highlighting
+syntect = "5"
+
+# SCSS
+grass = "0.13"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Directory traversal
+walkdir = "2"
+
+# Python execution
+pyo3 = { version = "0.28", optional = true }
+
+# Utilities
+anyhow = "1"
+chrono = "0.4"
+slug = "0.1"
+regex = "1"
+
+[dev-dependencies]
+tempfile = "3"

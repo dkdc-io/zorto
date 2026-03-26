@@ -3,12 +3,12 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 echo "Checking Rust formatting..."
-cargo fmt --manifest-path zorto/Cargo.toml -- --check
+cargo fmt -- --check
 
 echo "Running clippy..."
-cargo clippy --manifest-path zorto/Cargo.toml -- -D warnings
+cargo clippy -- -D warnings
 
 echo "Running Rust tests..."
-cargo test --manifest-path zorto/Cargo.toml
+cargo test
 
 echo "Rust checks passed!"

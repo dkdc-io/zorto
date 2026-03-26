@@ -1,0 +1,3 @@
+def run_cli(argv: list[str]) -> None:
+    """Run the zorto CLI with the given arguments."""
+    ...

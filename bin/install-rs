@@ -3,6 +3,6 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 echo "Installing zorto CLI..."
-cargo install --path zorto --force
+cargo install --path crates/zorto-cli --force
 
 echo "Rust install complete!"

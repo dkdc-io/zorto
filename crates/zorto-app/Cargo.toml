@@ -1,0 +1,13 @@
+[package]
+name = "zorto-app"
+version = "0.9.1"
+edition = "2024"
+rust-version = "1.85"
+authors = ["Cody <cody@dkdc.dev>"]
+description = "Desktop app for zorto (future)"
+license = "MIT"
+repository = "https://github.com/lostmygithubaccount/zorto"
+homepage = "https://github.com/lostmygithubaccount/zorto"
+
+[dependencies]
+anyhow = "1"

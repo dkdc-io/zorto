@@ -72,11 +72,11 @@ info "done — https://github.com/lostmygithubaccount/zorto"
 # ──────────────────────────────────────
 
 if [[ "${1:-}" == "--release" ]]; then
-    VERSION=$(grep '^version' "$ZORTO_DIR/zorto/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+    VERSION=$(grep '^version' "$ZORTO_DIR/crates/zorto/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
     TAG="v${VERSION}"
 
     if git -C "$CLONE_DIR" rev-parse "$TAG" >/dev/null 2>&1; then
-        err "tag $TAG already exists — bump version in zorto/Cargo.toml first"
+        err "tag $TAG already exists — bump version in crates/zorto/Cargo.toml first"
         exit 1
     fi
 

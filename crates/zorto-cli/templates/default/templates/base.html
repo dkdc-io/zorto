@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="{{ config.default_language }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ config.title }}{% endblock %}</title>
+    {% if config.generate_feed %}<link rel="alternate" type="application/atom+xml" title="Feed" href="{{ config.base_url }}/atom.xml">{% endif %}
+</head>
+<body>
+    <nav><a href="{{ config.base_url }}/">{{ config.title }}</a></nav>
+    <main>{% block content %}{% endblock %}</main>
+</body>
+</html>
