@@ -72,7 +72,7 @@ info "done — https://github.com/lostmygithubaccount/zorto"
 # ──────────────────────────────────────
 
 if [[ "${1:-}" == "--release" ]]; then
-    VERSION=$(grep '^version' "$ZORTO_DIR/crates/zorto/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+    VERSION=$(grep '^version' "$ZORTO_DIR/crates/zorto-cli/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
     TAG="v${VERSION}"
 
     if git -C "$CLONE_DIR" rev-parse "$TAG" >/dev/null 2>&1; then
