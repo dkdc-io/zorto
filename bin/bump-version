@@ -82,6 +82,13 @@ for f in "${TOML_FILES[@]}"; do
   echo "  updated $f"
 done
 
+# Also update inter-crate dependency versions
+echo "Updating inter-crate dependency versions..."
+for f in "${TOML_FILES[@]}"; do
+  sed -i '' "s/version = \"$CURRENT\", optional/version = \"$NEW\", optional/g" "$f"
+  sed -i '' "s/version = \"$CURRENT\", default/version = \"$NEW\", default/g" "$f"
+done
+
 # ---------- regenerate lock files ----------
 
 echo "Regenerating lock files..."
