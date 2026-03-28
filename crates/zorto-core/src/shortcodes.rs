@@ -186,9 +186,7 @@ fn fetch_url(url: &str) -> anyhow::Result<String> {
         .map_err(|e| anyhow::anyhow!("include shortcode: failed to fetch {url}: {e}"))?
         .body_mut()
         .read_to_string()
-        .map_err(|e| {
-            anyhow::anyhow!("include shortcode: failed to read response from {url}: {e}")
-        })
+        .map_err(|e| anyhow::anyhow!("include shortcode: failed to read response from {url}: {e}"))
 }
 
 /// Read a local file within the sandbox boundary.
