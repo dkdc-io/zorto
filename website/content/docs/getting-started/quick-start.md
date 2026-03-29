@@ -16,7 +16,7 @@ cd mysite
 zorto preview
 ```
 
-Your browser opens automatically at `http://127.0.0.1:1111`. Edit any file in `content/` and the page reloads instantly.
+Open `http://127.0.0.1:1111` in your browser, or use `zorto preview --open` to open it automatically. Edit any file in `content/` and the page reloads instantly.
 
 ## Build for production
 

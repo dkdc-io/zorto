@@ -10,7 +10,6 @@ Zorto is configured via `config.toml` in your project root.
 ```toml
 base_url = "https://example.com"
 title = "My site"
-template = "docs.html"
 ```
 
 ## Full example
@@ -18,7 +17,6 @@ template = "docs.html"
 ```toml
 base_url = "https://example.com"
 title = "My site"
-template = "docs.html"
 description = "A site built with Zorto"
 theme = "dkdc"
 
@@ -59,7 +57,7 @@ author = "Your Name"
 | `compile_sass` | bool | `true` | Compile SCSS to CSS |
 | `generate_feed` | bool | `false` | Generate Atom feed |
 | `generate_sitemap` | bool | `true` | Generate sitemap.xml |
-| `generate_llms_txt` | bool | `false` | Generate llms.txt and llms-full.txt |
+| `generate_llms_txt` | bool | `true` | Generate llms.txt and llms-full.txt |
 
 ### `[markdown]`
 

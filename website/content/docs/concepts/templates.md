@@ -26,8 +26,6 @@ Each template receives context variables:
 | `page` | `page.html` | Current page object |
 | `section` | `section.html`, `index.html` | Current section object |
 | `config` | All | Site configuration |
-| `current_url` | All | URL of the current page |
-| `current_path` | All | Path of the current page |
 | `paginator` | Paginated sections | Pagination info |
 
 ## Custom functions
@@ -53,7 +51,7 @@ Example:
 Common filters:
 
 ```html
-{{ "apple" | pluralize }}          <!-- apples -->
+{{ count | pluralize }}             <!-- "s" if count != 1, "" otherwise -->
 {{ pages | slice(start=0, end=5) }} <!-- first 5 items -->
 {{ page.date | date(format="%B %Y") }} <!-- January 2026 -->
 ```

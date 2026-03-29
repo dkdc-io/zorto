@@ -2,7 +2,7 @@
 title = "introducing zorto"
 date = "2026-03-28"
 author = "Cody"
-description = "A fast static site generator with executable code blocks, built-in themes, and GitHub-style callouts."
+description = "A fast static site generator built for AI and agents. MIT-licensed, free and open source forever."
 tags = ["zorto"]
 +++
 
@@ -10,11 +10,11 @@ Zorto is a fast static site generator inspired by [Zola](https://www.getzola.org
 
 <!-- more -->
 
-## why another SSG?
+## built for AI and agents
 
-Most static site generators make you choose: simple but limited, or powerful but complex. Zorto aims for both -- a minimal mental model with features that matter for modern sites.
+Zorto is designed from the ground up for agentic software engineering. AI can create a full website in minutes and maintain it with ease -- the config-driven architecture, built-in themes, and opinionated linting make it natural for both humans and agents to work with.
 
-It's written in Rust, builds sites in milliseconds, and is distributed as both a Rust binary and a Python package.
+More on AI-native workflows coming soon as we approach v1.
 
 ## executable code blocks
 
@@ -48,6 +48,10 @@ Eight built-in shortcodes: `include`, `tabs`, `note`, `details`, `figure`, `yout
 ## template linting
 
 `zorto check` warns about hardcoded strings in templates, inspired by clippy. User-facing text belongs in `config.toml` or content files, not in HTML templates. This keeps themes reusable.
+
+## free and open source
+
+Zorto is [MIT-licensed](https://github.com/dkdc-io/zorto/blob/main/LICENSE) -- free and open source forever. We may consider dual-licensing with Apache 2.0 in the future; [open an issue](https://github.com/dkdc-io/zorto/issues) if that would be useful for your project.
 
 ## install
 

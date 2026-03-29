@@ -28,8 +28,6 @@ title = "My first post"
 template = "docs.html"
 date = "2026-01-15"
 author = "Cody"
-
-[taxonomies]
 tags = ["intro"]
 +++
 

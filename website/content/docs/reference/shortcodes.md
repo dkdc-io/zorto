@@ -28,7 +28,7 @@ Render tabbed content panels.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `labels` | string | *required* | Comma-separated tab labels |
+| `labels` | string | *required* | Pipe-separated tab labels |
 
 Each tab's content is separated by `<!-- tab -->` in the body.
 
@@ -50,7 +50,7 @@ Styled callout box.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `type` | string | `"info"` | Style: `info`, `warning`, `tip`, `danger` |
+| `type` | string | *required* | Style: `info`, `warning`, `tip`, `danger` |
 
 **Examples:**
 
@@ -86,7 +86,7 @@ Collapsible disclosure section.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `summary` | string | `"Details"` | Text shown in the clickable summary |
+| `summary` | string | *required* | Text shown in the clickable summary |
 | `open` | bool | `false` | Whether the section starts expanded |
 
 **Example:**
@@ -100,7 +100,7 @@ You can include any markdown here: **bold**, `code`, lists, etc.
 **Syntax:**
 
 ```
-{% details(summary="Click to expand", open=true) %}
+{% details(summary="Click to expand", open="true") %}
 This starts expanded.
 {% end %}
 ```

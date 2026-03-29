@@ -79,7 +79,6 @@ Then tag your posts:
 title = "Hello world"
 template = "docs.html"
 date = "2026-01-01"
-[taxonomies]
 tags = ["intro", "hello"]
 +++
 ```

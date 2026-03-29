@@ -20,7 +20,7 @@ At build time, Zorto runs the code and inserts the output below the block.
 
 ## Bash blocks
 
-Use the `{bash}` language tag:
+Use the `{bash}` (or `{sh}`) language tag:
 
 ````markdown
 ```{bash}

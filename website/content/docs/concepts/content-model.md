@@ -19,15 +19,12 @@ Every content file starts with TOML frontmatter between `+++` delimiters:
 ```toml
 +++
 title = "My page"
-template = "docs.html"
 date = "2026-01-15"
 author = "Cody"
 description = "A short summary for SEO and feeds."
 draft = true
 slug = "custom-url"
 template = "custom-page.html"
-
-[taxonomies]
 tags = ["rust", "ssg"]
 
 [extra]
@@ -44,7 +41,10 @@ custom_field = "any value you want"
 | `draft` | bool | If true, excluded from builds (default: false) |
 | `slug` | string | Override the URL slug |
 | `template` | string | Use a custom template |
-| `[taxonomies]` | table | Taxonomy values (e.g. tags, categories) |
+| `aliases` | array of strings | Redirect old URLs to this page |
+| `sort_by` | string | Sort child pages: `"date"` or `"title"` (sections only) |
+| `paginate_by` | int | Number of items per page, 0 = no pagination (sections only) |
+| taxonomy fields | array of strings | Taxonomy values as top-level arrays (e.g. `tags = ["rust", "ssg"]`) |
 | `[extra]` | table | Arbitrary custom data, accessible in templates |
 
 ## Co-located assets
