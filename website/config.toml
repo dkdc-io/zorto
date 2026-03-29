@@ -2,7 +2,7 @@
 base_url = "https://zorto.dev"
 title = "zorto.dev"
 theme = "dkdc"
-generate_llms_txt = false
+generate_llms_txt = true
 
 [markdown]
 highlight_code = true
@@ -30,6 +30,7 @@ menu_items = [
 
 menu_items_right = [
   { name = "blog", url = "/posts" },
+  { name = "llms.txt", url = "/llms.txt" },
 ]
 
 social_links = [
