@@ -1,6 +1,8 @@
 +++
 title = "Installation"
 template = "docs.html"
+slug = "installation"
+date = "2099-01-03"
 +++
 
 ## Install script
@@ -29,7 +31,7 @@ Or with pip:
 pip install zorto
 ```
 
-The Python package bundles the same Rust binary -- no performance difference.
+The Python package bundles the same Rust binary: no performance difference.
 
 ## Verify
 

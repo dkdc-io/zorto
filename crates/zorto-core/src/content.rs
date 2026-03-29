@@ -375,12 +375,14 @@ pub fn load_content(content_dir: &Path, base_url: &str) -> anyhow::Result<Loaded
             .to_string_lossy();
 
         if filename == "_index.md" {
-            let content = std::fs::read_to_string(path)?;
+            let content = std::fs::read_to_string(path)
+                .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", path.display()))?;
             let (fm, body) = parse_frontmatter(&content)?;
             let section = build_section(fm, body, &relative, base_url);
             sections.insert(relative, section);
         } else if filename.ends_with(".md") {
-            let content = std::fs::read_to_string(path)?;
+            let content = std::fs::read_to_string(path)
+                .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", path.display()))?;
             let (fm, body) = parse_frontmatter(&content)?;
             let page = build_page(fm, body, &relative, base_url);
             pages.insert(relative, page);
