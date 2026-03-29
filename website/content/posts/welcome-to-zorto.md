@@ -49,6 +49,10 @@ Eight built-in shortcodes: `include`, `tabs`, `note`, `details`, `figure`, `yout
 
 `zorto check` warns about hardcoded strings in templates, inspired by clippy. User-facing text belongs in `config.toml` or content files, not in HTML templates. This keeps themes reusable.
 
+## llms.txt
+
+Zorto generates [llms.txt](/llms.txt) and [llms-full.txt](/llms-full.txt) by default -- structured text files that help LLMs understand your site. This is enabled out of the box; set `generate_llms_txt = false` in `config.toml` to disable.
+
 ## what's next
 
 We're working toward v1 with more built-in themes, support for additional languages in executable code blocks (beyond Python and Bash), and broader visualization support. More on all of that soon.
