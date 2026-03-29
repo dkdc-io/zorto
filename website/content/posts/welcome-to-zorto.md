@@ -1,54 +1,53 @@
 +++
-title = "introducing zorto v0.12"
+title = "introducing zorto"
 date = "2026-03-28"
 author = "Cody"
-description = "built-in themes, shortcodes, GitHub-style callouts, and comprehensive documentation."
-tags = ["release"]
+description = "A fast static site generator with executable code blocks, built-in themes, and GitHub-style callouts."
+tags = ["zorto"]
 +++
 
-Zorto v0.12 is a big step toward a production-ready static site generator. here's what's new.
+Zorto is a fast static site generator inspired by [Zola](https://www.getzola.org/) and [Quarto](https://quarto.org/). Here's what makes it different.
 
 <!-- more -->
 
+## why another SSG?
+
+Most static site generators make you choose: simple but limited, or powerful but complex. Zorto aims for both -- a minimal mental model with features that matter for modern sites.
+
+It's written in Rust, builds sites in milliseconds, and is distributed as both a Rust binary and a Python package.
+
+## executable code blocks
+
+Zorto's defining feature. Fenced code blocks marked with `{python}` or `{bash}` run at build time:
+
+```{bash}
+echo "This ran at $(date +%Y-%m-%d)"
+```
+
+The output is rendered inline. This powers self-updating documentation -- our [CLI reference](/docs/reference/cli/) runs `zorto --help` at build time, so the docs are always current.
+
 ## built-in themes
 
-Zorto now ships with three built-in themes: `dkdc`, `light`, and `dark`. set `theme = "dkdc"` in your `config.toml` and you get a complete site with navbar, footer, theme toggle, and responsive design -- no local templates or SCSS needed.
+Zorto ships with three themes: `dkdc`, `light`, and `dark`. Set `theme = "dkdc"` in `config.toml` and you get a complete site -- navbar, footer, theme toggle, responsive design.
 
-all themes support light/dark mode toggling. the theme name picks the aesthetic and default mode. override any template or SCSS variable locally; your files always win.
-
-themes are [Cargo features](/docs/concepts/themes/) -- you can disable ones you don't need for smaller binaries. Python builds include all themes.
-
-## built-in shortcodes
-
-six new shortcodes ship with Zorto:
-
-- **note** -- callout/admonition boxes (info, warning, danger, tip)
-- **details** -- collapsible sections
-- **figure** -- images with captions
-- **youtube** -- responsive video embeds
-- **gist** -- GitHub gist embeds
-- **mermaid** -- diagrams
-
-see the full [shortcode reference](/docs/reference/shortcodes/) for examples.
+All themes support light/dark mode toggling. Override any template or SCSS variable locally; your files always win.
 
 ## GitHub-style callouts
 
-write callouts with standard GitHub alert syntax:
+Write callouts with standard GitHub alert syntax:
 
 > [!TIP]
-> Zorto renders these natively using pulldown-cmark's GFM support. no shortcode needed.
+> Zorto renders these natively using pulldown-cmark's GFM support. No shortcode needed.
 
-five types: `NOTE`, `TIP`, `WARNING`, `CAUTION`, `IMPORTANT`. see the [callouts reference](/docs/reference/callouts/).
+Five types: `NOTE`, `TIP`, `WARNING`, `CAUTION`, `IMPORTANT`.
+
+## shortcodes
+
+Eight built-in shortcodes: `include`, `tabs`, `note`, `details`, `figure`, `youtube`, `gist`, `mermaid`. Plus you can create your own with Tera templates.
 
 ## template linting
 
-`zorto check` now warns about hardcoded strings in templates. the idea: user-facing text belongs in `config.toml` or content files, not in HTML templates. this makes themes reusable and sites maintainable.
-
-use `--deny-warnings` in CI to enforce it.
-
-## documentation
-
-the [docs](/docs/getting-started/) are organized into four sections: getting started, concepts, how-to guides, and reference. the [CLI reference](/docs/reference/cli/) uses executable code blocks -- it updates itself every build.
+`zorto check` warns about hardcoded strings in templates, inspired by clippy. User-facing text belongs in `config.toml` or content files, not in HTML templates. This keeps themes reusable.
 
 ## install
 
@@ -56,16 +55,6 @@ the [docs](/docs/getting-started/) are organized into four sections: getting sta
 curl -sSL https://dkdc.sh/zorto | bash
 ```
 
-or via [crates.io](https://crates.io/crates/zorto) / [PyPI](https://pypi.org/project/zorto/).
+Or via [crates.io](https://crates.io/crates/zorto) / [PyPI](https://pypi.org/project/zorto/).
 
-## roadmap to v1.0.0
-
-v0.12 is the v1-ready release. what remains:
-
-- polish the light and dark themes
-- search (full-text index)
-- i18n support
-- more shortcodes based on community feedback
-- sentence-case convention shift (like Go)
-
-follow along on [GitHub](https://github.com/dkdc-io/zorto).
+Check out the [getting started](/docs/getting-started/) guide, or browse the [source on GitHub](https://github.com/dkdc-io/zorto).
