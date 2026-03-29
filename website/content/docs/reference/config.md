@@ -12,6 +12,7 @@ Complete reference for `config.toml`.
 | `base_url` | string | *required* | Full URL of the deployed site (e.g. `https://example.com`) |
 | `title` | string | `""` | Site title, available as `config.title` in templates |
 | `description` | string | `""` | Site description for meta tags and feeds |
+| `default_language` | string | `"en"` | Default language for the site |
 | `theme` | string | `""` | Theme to use (`dkdc`, `light`, `dark`) |
 | `compile_sass` | bool | `true` | Compile `.scss` files from `sass/` to CSS |
 | `generate_feed` | bool | `false` | Generate an Atom feed at `/atom.xml` |
