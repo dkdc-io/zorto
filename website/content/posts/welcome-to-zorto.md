@@ -52,7 +52,7 @@ Eight built-in shortcodes: `include`, `tabs`, `note`, `details`, `figure`, `yout
 ## install
 
 ```bash
-curl -sSL https://dkdc.sh/zorto | bash
+curl -LsSf https://dkdc.sh/zorto/install.sh | sh
 ```
 
 Or via [crates.io](https://crates.io/crates/zorto) / [PyPI](https://pypi.org/project/zorto/).

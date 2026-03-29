@@ -8,7 +8,7 @@ template = "docs.html"
 The quickest way to install Zorto:
 
 ```bash
-curl -sSL https://dkdc.sh/zorto | bash
+curl -LsSf https://dkdc.sh/zorto/install.sh | sh
 ```
 
 ## From crates.io (Rust)
