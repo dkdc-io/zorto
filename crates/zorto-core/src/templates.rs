@@ -54,7 +54,25 @@ pub fn setup_tera(
         // Tera::parse errors if the glob matches no files. Only parse if
         // there are actually HTML files to load.
         match tera::Tera::parse(&templates_glob) {
-            Ok(local) => tera.extend(&local)?,
+            Ok(local) => {
+                // tera.extend() skips templates that already exist, so we
+                // re-add local templates as raw strings to override theme ones.
+                let mut overrides = Vec::new();
+                for name in local.templates.keys() {
+                    let path = templates_dir.join(name);
+                    if path.exists() {
+                        let content = std::fs::read_to_string(&path)?;
+                        overrides.push((name.clone(), content));
+                    }
+                }
+                if !overrides.is_empty() {
+                    let raw: Vec<(&str, &str)> = overrides
+                        .iter()
+                        .map(|(n, c)| (n.as_str(), c.as_str()))
+                        .collect();
+                    tera.add_raw_templates(raw)?;
+                }
+            }
             Err(e) => {
                 let msg = e.to_string();
                 // "No files matched" is expected when templates/ exists but
