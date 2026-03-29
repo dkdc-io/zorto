@@ -32,25 +32,24 @@ menu_items_right = [
   { name = "blog", url = "/posts" },
 ]
 
-[[extra.social_links]]
-name = "GitHub"
-url = "https://github.com/dkdc-io/zorto"
-icon = "github"
+social_links = [
+  { name = "GitHub", url = "https://github.com/dkdc-io/zorto", icon = "github" },
+]
 
 hero_title = "Zorto"
 hero_subtitle = "A fast static site generator with executable code blocks."
 hero_actions = [
-  { name = "Get started", url = "/docs/getting-started/", style = "default" },
-  { name = "GitHub", url = "https://github.com/dkdc-io/zorto", style = "outline", external = true },
+  { name = "get started", url = "/docs/getting-started/", style = "default" },
+  { name = "github", url = "https://github.com/dkdc-io/zorto", style = "outline", external = true },
 ]
 
 features = [
-  { name = "Fast", description = "Written in Rust. Render your website in milliseconds." },
+  { name = "fast", description = "Written in Rust. Render your website in milliseconds." },
   { name = "AI-native", description = "Built for AI to create your website in minutes & maintain it with ease." },
-  { name = "Executable code blocks", description = "Run Python and Bash at build time. Output rendered inline." },
-  { name = "Built-in themes", description = "Ship with dkdc, light, and dark themes. Override anything locally." },
-  { name = "Shortcodes & callouts", description = "Built-in note, details, figure, youtube, mermaid shortcodes. GitHub-style callout alerts." },
-  { name = "Free & open source", description = "MIT-licensed forever." },
+  { name = "executable code blocks", description = "Run Python and Bash at build time. Output rendered inline." },
+  { name = "built-in themes", description = "Ship with dkdc, light, and dark themes. Override anything locally." },
+  { name = "shortcodes & callouts", description = "Built-in note, details, figure, youtube, mermaid shortcodes. GitHub-style callout alerts." },
+  { name = "free & open source", description = "MIT-licensed forever." },
 ]
 
 copyright_html = '<a href="/">Zorto</a> by <a href="https://dkdc.dev" target="_blank" rel="noopener">dkdc.dev</a> via <a href="https://zorto.dev" target="_blank" rel="noopener">Zorto</a>'

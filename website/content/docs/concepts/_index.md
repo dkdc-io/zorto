@@ -1,5 +1,6 @@
 +++
 title = "Concepts"
+template = "docs-section.html"
 sort_by = "title"
 +++
 

@@ -303,11 +303,31 @@ hr {
     }
   }
 
-  &__links--right {
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 0;
-    gap: 16px;
+  &__right-items {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  &__right-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: color .2s, border-color .2s, background .2s;
+
+    &:hover {
+      color: var(--accent);
+      border-color: var(--accent-alpha-70);
+      background: var(--accent-alpha-20);
+    }
   }
 
   &__toggle-input {

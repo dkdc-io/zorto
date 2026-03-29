@@ -1,5 +1,6 @@
 +++
 title = "Reference"
+template = "docs-section.html"
 sort_by = "title"
 +++
 

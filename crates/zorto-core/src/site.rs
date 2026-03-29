@@ -254,7 +254,7 @@ impl Site {
             let template_name = if section.path == "/" {
                 "index.html"
             } else {
-                "section.html"
+                section.template.as_deref().unwrap_or("section.html")
             };
 
             // Render base page (or paginated pages)

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}{{ section.title }} | {{ config.title }}{% endblock title %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <nav class="docs-nav" aria-label="Documentation">
+            {% set gs = get_section(path="docs/getting-started/_index.md") %}
+            <div class="docs-nav__section">
+                <h3><a href="{{ gs.permalink | replace(from=config.base_url, to="") }}">getting started</a></h3>
+                <ul>
+                {%- for p in gs.pages %}
+                    <li><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title | lower }}</a></li>
+                {%- endfor %}
+                </ul>
+            </div>
+
+            {% set concepts = get_section(path="docs/concepts/_index.md") %}
+            <div class="docs-nav__section">
+                <h3><a href="{{ concepts.permalink | replace(from=config.base_url, to="") }}">concepts</a></h3>
+                <ul>
+                {%- for p in concepts.pages %}
+                    <li><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title | lower }}</a></li>
+                {%- endfor %}
+                </ul>
+            </div>
+
+            {% set howto = get_section(path="docs/how-to/_index.md") %}
+            <div class="docs-nav__section">
+                <h3><a href="{{ howto.permalink | replace(from=config.base_url, to="") }}">how-to</a></h3>
+                <ul>
+                {%- for p in howto.pages %}
+                    <li><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title | lower }}</a></li>
+                {%- endfor %}
+                </ul>
+            </div>
+
+            {% set reference = get_section(path="docs/reference/_index.md") %}
+            <div class="docs-nav__section">
+                <h3><a href="{{ reference.permalink | replace(from=config.base_url, to="") }}">reference</a></h3>
+                <ul>
+                {%- for p in reference.pages %}
+                    <li><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title | lower }}</a></li>
+                {%- endfor %}
+                </ul>
+            </div>
+        </nav>
+    </aside>
+
+    <div class="docs-content">
+        <div class="post">
+            <h1 class="post-title">{{ section.title | lower }}</h1>
+            {%- if section.content %}
+            <div class="post-content">{{ section.content | safe }}</div>
+            {%- endif %}
+
+            {%- for page in section.pages %}
+            <div class="docs-page-link">
+                <h3><a href="{{ page.permalink | replace(from=config.base_url, to="") }}">{{ page.title | lower }}</a></h3>
+                {%- if page.description %}
+                <p>{{ page.description }}</p>
+                {%- endif %}
+            </div>
+            {%- endfor %}
+        </div>
+    </div>
+</div>
+{% endblock content %}

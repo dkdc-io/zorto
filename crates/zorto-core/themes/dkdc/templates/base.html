@@ -76,12 +76,12 @@
         </ul>
         {%- endif %}
         {%- if config.extra.menu_items_right %}
-        <ul class="navbar__links navbar__links--right">
+        <div class="navbar__right-items">
         {%- for item in config.extra.menu_items_right %}
             {%- set item_url = item.url | replace(from="$BASE_URL", to=config.base_url) %}
-            <li><a href="{{ item_url }}"{% if item.external | default(value=false) %} target="_blank" rel="noopener"{% endif %}>{{ item.name }}</a></li>
+            <a href="{{ item_url }}" class="navbar__right-btn"{% if item.external | default(value=false) %} target="_blank" rel="noopener"{% endif %}>{{ item.name }}</a>
         {%- endfor %}
-        </ul>
+        </div>
         {%- endif %}
         </div>
         <label for="nav-toggle" class="navbar__hamburger" role="button" aria-label="Toggle menu" aria-expanded="false">
