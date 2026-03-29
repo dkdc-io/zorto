@@ -1,4 +1,4 @@
-use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{BlockQuoteKind, CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd};
 use regex::Regex;
 use std::sync::LazyLock;
 use syntect::highlighting::ThemeSet;
@@ -8,6 +8,10 @@ use syntect::parsing::SyntaxSet;
 use crate::config::{AnchorLinks, MarkdownConfig};
 use crate::content::escape_xml;
 use crate::execute::ExecutableBlock;
+use crate::shortcodes::{
+    CALLOUT_ICON_CAUTION, CALLOUT_ICON_IMPORTANT, CALLOUT_ICON_NOTE, CALLOUT_ICON_TIP,
+    CALLOUT_ICON_WARNING,
+};
 
 static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
 static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
@@ -25,6 +29,7 @@ pub fn render_markdown(
     options.insert(Options::ENABLE_FOOTNOTES);
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
+    options.insert(Options::ENABLE_GFM);
     if config.smart_punctuation {
         options.insert(Options::ENABLE_SMART_PUNCTUATION);
     }
@@ -40,6 +45,19 @@ pub fn render_markdown(
 
     for event in parser {
         match event {
+            // --- GitHub-style callout / alert blockquotes ---
+            Event::Start(Tag::BlockQuote(Some(kind))) => {
+                let (css_class, icon, title) = callout_info(&kind);
+                let html = format!(
+                    "<div class=\"callout callout--{css_class}\">\
+                     <p class=\"callout__title\">{icon} {title}</p>"
+                );
+                events.push(Event::Html(CowStr::from(html)));
+            }
+            Event::End(TagEnd::BlockQuote(Some(_))) => {
+                events.push(Event::Html(CowStr::from("</div>")));
+            }
+
             Event::Start(Tag::CodeBlock(kind)) => {
                 in_code_block = true;
                 code_content.clear();
@@ -159,6 +177,17 @@ pub fn render_markdown(
     pulldown_cmark::html::push_html(&mut html, events.into_iter());
 
     html
+}
+
+/// Get CSS class, SVG icon, and display title for a GitHub-style callout.
+fn callout_info(kind: &BlockQuoteKind) -> (&'static str, &'static str, &'static str) {
+    match kind {
+        BlockQuoteKind::Note => ("note", CALLOUT_ICON_NOTE, "Note"),
+        BlockQuoteKind::Tip => ("tip", CALLOUT_ICON_TIP, "Tip"),
+        BlockQuoteKind::Warning => ("warning", CALLOUT_ICON_WARNING, "Warning"),
+        BlockQuoteKind::Caution => ("caution", CALLOUT_ICON_CAUTION, "Caution"),
+        BlockQuoteKind::Important => ("important", CALLOUT_ICON_IMPORTANT, "Important"),
+    }
 }
 
 /// Extract summary from content at <!-- more --> marker
@@ -412,6 +441,73 @@ mod tests {
         let html = render_markdown(input, &config, &mut blocks, "https://example.com");
         assert!(!html.contains("<script>"));
         assert!(html.contains("&lt;script&gt;"));
+    }
+
+    #[test]
+    fn test_render_callout_note() {
+        let mut blocks = Vec::new();
+        let input = "> [!NOTE]\n> This is a note.";
+        let html = render_markdown(input, &default_config(), &mut blocks, "https://example.com");
+        assert!(html.contains("callout callout--note"));
+        assert!(html.contains("callout__title"));
+        assert!(html.contains("Note"));
+        assert!(html.contains("This is a note."));
+    }
+
+    #[test]
+    fn test_render_callout_tip() {
+        let mut blocks = Vec::new();
+        let input = "> [!TIP]\n> Helpful advice here.";
+        let html = render_markdown(input, &default_config(), &mut blocks, "https://example.com");
+        assert!(html.contains("callout--tip"));
+        assert!(html.contains("Tip"));
+        assert!(html.contains("Helpful advice here."));
+    }
+
+    #[test]
+    fn test_render_callout_warning() {
+        let mut blocks = Vec::new();
+        let input = "> [!WARNING]\n> Be careful.";
+        let html = render_markdown(input, &default_config(), &mut blocks, "https://example.com");
+        assert!(html.contains("callout--warning"));
+        assert!(html.contains("Warning"));
+    }
+
+    #[test]
+    fn test_render_callout_caution() {
+        let mut blocks = Vec::new();
+        let input = "> [!CAUTION]\n> Danger zone.";
+        let html = render_markdown(input, &default_config(), &mut blocks, "https://example.com");
+        assert!(html.contains("callout--caution"));
+        assert!(html.contains("Caution"));
+    }
+
+    #[test]
+    fn test_render_callout_important() {
+        let mut blocks = Vec::new();
+        let input = "> [!IMPORTANT]\n> Key info.";
+        let html = render_markdown(input, &default_config(), &mut blocks, "https://example.com");
+        assert!(html.contains("callout--important"));
+        assert!(html.contains("Important"));
+    }
+
+    #[test]
+    fn test_render_regular_blockquote_unchanged() {
+        let mut blocks = Vec::new();
+        let input = "> This is a regular blockquote.";
+        let html = render_markdown(input, &default_config(), &mut blocks, "https://example.com");
+        assert!(html.contains("<blockquote>"));
+        assert!(!html.contains("callout"));
+    }
+
+    #[test]
+    fn test_render_callout_with_multiple_paragraphs() {
+        let mut blocks = Vec::new();
+        let input = "> [!NOTE]\n> First paragraph.\n>\n> Second paragraph.";
+        let html = render_markdown(input, &default_config(), &mut blocks, "https://example.com");
+        assert!(html.contains("callout--note"));
+        assert!(html.contains("First paragraph."));
+        assert!(html.contains("Second paragraph."));
     }
 
     #[test]

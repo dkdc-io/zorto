@@ -24,14 +24,36 @@ pub struct Paginator {
     pub last: String,
 }
 
-/// Set up Tera engine with custom functions, filters, and tests
+/// Set up Tera engine with custom functions, filters, and tests.
+///
+/// When a theme is configured, theme templates are loaded first as a base
+/// layer. Local templates from `templates_dir` then overlay and override
+/// any theme template with the same name.
 pub fn setup_tera(
     templates_dir: &std::path::Path,
     config: &Config,
     sections: &HashMap<String, Section>,
 ) -> anyhow::Result<tera::Tera> {
-    let templates_glob = format!("{}/**/*.html", templates_dir.display());
-    let mut tera = tera::Tera::new(&templates_glob)?;
+    let mut tera = tera::Tera::default();
+
+    // 1. Load theme templates as base layer (if theme is set)
+    if let Some(ref theme_name) = config.theme {
+        let theme = crate::themes::Theme::from_name(theme_name).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown theme '{}', available: {}",
+                theme_name,
+                crate::themes::Theme::available().join(", ")
+            )
+        })?;
+        tera.add_raw_templates(theme.templates())?;
+    }
+
+    // 2. Overlay with local templates (local always wins)
+    if templates_dir.exists() {
+        let templates_glob = format!("{}/**/*.html", templates_dir.display());
+        let local = tera::Tera::parse(&templates_glob)?;
+        tera.extend(&local)?;
+    }
 
     // Register custom functions
     register_functions(&mut tera, config, sections);

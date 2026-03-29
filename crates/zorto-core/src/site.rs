@@ -103,9 +103,12 @@ impl Site {
         // Phase 5: ASSETS
         if self.config.compile_sass {
             let sass_dir = self.root.join("sass");
-            if sass_dir.exists() {
-                sass::compile_sass(&sass_dir, &self.output_dir)?;
-            }
+            let theme = self
+                .config
+                .theme
+                .as_deref()
+                .and_then(crate::themes::Theme::from_name);
+            sass::compile_sass_with_theme(&sass_dir, &self.output_dir, theme.as_ref())?;
         }
 
         // Copy static files

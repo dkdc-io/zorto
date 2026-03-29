@@ -30,6 +30,12 @@ pub struct Config {
     /// Markdown rendering options.
     #[serde(default)]
     pub markdown: MarkdownConfig,
+    /// Built-in theme name (e.g. `"dkdc"`, `"light"`, `"dark"`).
+    ///
+    /// When set, the theme provides default templates and SCSS. Local
+    /// `templates/` and `sass/` files override theme defaults.
+    #[serde(default, skip_serializing)]
+    pub theme: Option<String>,
     /// Arbitrary extra values accessible in templates as `config.extra`.
     #[serde(default = "default_toml_table", serialize_with = "serialize_extra")]
     pub extra: toml::Value,
@@ -145,6 +151,24 @@ impl Config {
 
         // Ensure base_url has no trailing slash
         config.base_url = config.base_url.trim_end_matches('/').to_string();
+
+        // Validate theme name if set
+        if let Some(ref theme_name) = config.theme {
+            if crate::themes::Theme::from_name(theme_name).is_none() {
+                let available = crate::themes::Theme::available();
+                if available.is_empty() {
+                    anyhow::bail!(
+                        "Unknown theme '{theme_name}'. No built-in themes are available \
+                         (theme features may be disabled)."
+                    );
+                } else {
+                    anyhow::bail!(
+                        "Unknown theme '{theme_name}', available: {}",
+                        available.join(", ")
+                    );
+                }
+            }
+        }
 
         Ok(config)
     }

@@ -24,11 +24,12 @@
 
 pub mod config;
 pub mod content;
+pub mod markdown;
 pub mod site;
+pub mod themes;
 
 pub(crate) mod execute;
 pub(crate) mod links;
-pub mod markdown;
 pub(crate) mod sass;
 pub(crate) mod shortcodes;
 pub(crate) mod templates;
