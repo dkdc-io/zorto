@@ -1,6 +1,8 @@
 +++
 title = "Installation"
 template = "docs.html"
+slug = "installation"
+date = "2099-01-03"
 +++
 
 ## Install script
