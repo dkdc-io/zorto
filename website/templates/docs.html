@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }} | {{ config.title }}{% endblock title %}
+
+{% block content %}
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <nav class="docs-nav" aria-label="Documentation">
+            {%- if page.path is starting_with("/docs/getting-started") %}
+            {% set current_section = get_section(path="docs/getting-started/_index.md") %}
+            {%- elif page.path is starting_with("/docs/concepts") %}
+            {% set current_section = get_section(path="docs/concepts/_index.md") %}
+            {%- elif page.path is starting_with("/docs/how-to") %}
+            {% set current_section = get_section(path="docs/how-to/_index.md") %}
+            {%- elif page.path is starting_with("/docs/reference") %}
+            {% set current_section = get_section(path="docs/reference/_index.md") %}
+            {%- endif %}
+
+            {%- if current_section %}
+            <div class="docs-nav__section">
+                <h3><a href="{{ current_section.permalink | replace(from=config.base_url, to="") }}">{{ current_section.title | lower }}</a></h3>
+                <ul>
+                {%- for p in current_section.pages %}
+                    <li{% if page.permalink == p.permalink %} class="active"{% endif %}><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title | lower }}</a></li>
+                {%- endfor %}
+                </ul>
+            </div>
+            {%- endif %}
+        </nav>
+    </aside>
+
+    <div class="docs-content">
+        <div class="post">
+            <h1 class="post-title">{{ page.title | lower }}</h1>
+            <div class="post-content">{{ page.content | safe }}</div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

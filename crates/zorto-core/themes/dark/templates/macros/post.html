@@ -8,7 +8,6 @@
 {{ self::tags(page=page) }}
 {% endmacro header %}
 
-
 {% macro content(page, summary, show_only_description) %}
 {%- if show_only_description %}
     <div class="post-content">{{ page.description | safe }}</div>
@@ -24,7 +23,6 @@
     <div class="post-content">{{ page.content | safe }}</div>
 {%- endif %}
 {% endmacro content %}
-
 
 {% macro tags(page, short=false) %}
 {%- if page.taxonomies and page.taxonomies.tags %}

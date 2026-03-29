@@ -103,9 +103,12 @@ impl Site {
         // Phase 5: ASSETS
         if self.config.compile_sass {
             let sass_dir = self.root.join("sass");
-            if sass_dir.exists() {
-                sass::compile_sass(&sass_dir, &self.output_dir)?;
-            }
+            let theme = self
+                .config
+                .theme
+                .as_deref()
+                .and_then(crate::themes::Theme::from_name);
+            sass::compile_sass_with_theme(&sass_dir, &self.output_dir, theme.as_ref())?;
         }
 
         // Copy static files
@@ -218,9 +221,12 @@ impl Site {
     fn render_templates(&self, tera: &tera::Tera) -> anyhow::Result<()> {
         // Clean and create output dir
         if self.output_dir.exists() {
-            std::fs::remove_dir_all(&self.output_dir)?;
+            std::fs::remove_dir_all(&self.output_dir).map_err(|e| {
+                anyhow::anyhow!("failed to clean {}: {e}", self.output_dir.display())
+            })?;
         }
-        std::fs::create_dir_all(&self.output_dir)?;
+        std::fs::create_dir_all(&self.output_dir)
+            .map_err(|e| anyhow::anyhow!("failed to create {}: {e}", self.output_dir.display()))?;
 
         // Render pages
         for page in self.pages.values() {
@@ -248,7 +254,7 @@ impl Site {
             let template_name = if section.path == "/" {
                 "index.html"
             } else {
-                "section.html"
+                section.template.as_deref().unwrap_or("section.html")
             };
 
             // Render base page (or paginated pages)
@@ -390,7 +396,10 @@ impl Site {
     }
 
     /// Validate site without writing output
-    pub fn check(&mut self) -> anyhow::Result<()> {
+    /// Check the site for errors and lint warnings.
+    ///
+    /// When `deny_warnings` is true, lint warnings are promoted to errors.
+    pub fn check(&mut self, deny_warnings: bool) -> anyhow::Result<()> {
         if !self.drafts {
             self.pages.retain(|_, p| !p.draft);
         }
@@ -400,6 +409,19 @@ impl Site {
 
         let templates_dir = self.root.join("templates");
         let _tera = templates::setup_tera(&templates_dir, &self.config, &self.sections)?;
+
+        // Lint templates
+        let warnings = crate::lint::lint_templates(&templates_dir);
+        for w in &warnings {
+            eprintln!("{w}");
+        }
+        if deny_warnings && !warnings.is_empty() {
+            anyhow::bail!(
+                "{} lint warning{} found (--deny-warnings is set)",
+                warnings.len(),
+                if warnings.len() == 1 { "" } else { "s" }
+            );
+        }
 
         Ok(())
     }
@@ -598,7 +620,9 @@ impl Site {
             if let Some(parent) = dest.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::copy(asset_path, &dest)?;
+            std::fs::copy(asset_path, &dest).map_err(|e| {
+                anyhow::anyhow!("failed to copy asset {}: {e}", asset_path.display())
+            })?;
         }
 
         Ok(())
@@ -654,7 +678,13 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
             if let Some(parent) = dest.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::copy(path, &dest)?;
+            std::fs::copy(path, &dest).map_err(|e| {
+                anyhow::anyhow!(
+                    "failed to copy {} -> {}: {e}",
+                    path.display(),
+                    dest.display()
+                )
+            })?;
         }
     }
     Ok(())

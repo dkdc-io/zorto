@@ -151,6 +151,8 @@ pub struct Section {
     pub sort_by: Option<SortBy>,
     /// If set, paginate the section with this many pages per page.
     pub paginate_by: Option<usize>,
+    /// Custom template name. Defaults to `"section.html"`.
+    pub template: Option<String>,
     /// Extra frontmatter values as JSON, accessible in templates as `section.extra`.
     pub extra: serde_json::Value,
     /// Path of the source `_index.md` relative to the content directory.
@@ -324,6 +326,7 @@ pub fn build_section(
         pages: vec![],
         sort_by: fm.sort_by,
         paginate_by: fm.paginate_by,
+        template: fm.template,
         extra,
         relative_path: relative_path.to_string(),
     }

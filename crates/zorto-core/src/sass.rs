@@ -1,5 +1,61 @@
 use std::path::Path;
 
+use crate::themes::Theme;
+
+/// Compile SCSS with optional theme support.
+///
+/// When a theme is active, theme SCSS files are written to a temp directory
+/// first, then local `sass/` files are overlaid on top. This lets a site
+/// override just `_variables.scss` to change colors while keeping the rest
+/// of the theme's stylesheet.
+pub fn compile_sass_with_theme(
+    sass_dir: &Path,
+    output_dir: &Path,
+    theme: Option<&Theme>,
+) -> anyhow::Result<()> {
+    match theme {
+        Some(theme) => {
+            let scss_files = theme.scss();
+            if scss_files.is_empty() && !sass_dir.exists() {
+                return Ok(());
+            }
+
+            let work_dir = tempfile::tempdir()
+                .map_err(|e| anyhow::anyhow!("failed to create temp dir for SCSS: {e}"))?;
+
+            // Write theme SCSS files as base layer
+            for (filename, content) in &scss_files {
+                std::fs::write(work_dir.path().join(filename), content)
+                    .map_err(|e| anyhow::anyhow!("failed to write theme SCSS {filename}: {e}"))?;
+            }
+
+            // Overlay local sass files (local overrides theme)
+            if sass_dir.exists() {
+                for entry in std::fs::read_dir(sass_dir)
+                    .map_err(|e| anyhow::anyhow!("cannot read sass dir: {e}"))?
+                {
+                    let entry = entry?;
+                    if entry.path().is_file() {
+                        std::fs::copy(entry.path(), work_dir.path().join(entry.file_name()))
+                            .map_err(|e| {
+                                anyhow::anyhow!("failed to copy {}: {e}", entry.path().display())
+                            })?;
+                    }
+                }
+            }
+
+            compile_sass(work_dir.path(), output_dir)
+        }
+        None => {
+            if sass_dir.exists() {
+                compile_sass(sass_dir, output_dir)
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
 /// Compile all top-level SCSS files in `sass_dir` to CSS in `output_dir`.
 ///
 /// Each `<name>.scss` produces `<name>.css`. Files starting with `_` are

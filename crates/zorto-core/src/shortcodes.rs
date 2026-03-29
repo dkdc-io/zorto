@@ -23,6 +23,12 @@ static ARGS_SINGLE_RE: LazyLock<Regex> =
 /// Built-in shortcodes (no template needed):
 /// - `include(path="...")`: Read and inject file contents relative to site root
 /// - `tabs(labels="A|B")`: Tabbed content panels, body split on `<!-- tab -->`
+/// - `note(type="info|warning|danger|tip")`: Callout/admonition box
+/// - `details(summary="...")`: Collapsible content section
+/// - `figure(src="...")`: Image with optional caption
+/// - `youtube(id="...")`: Responsive YouTube embed
+/// - `gist(url="...")`: Embedded GitHub Gist
+/// - `mermaid()`: Mermaid diagram
 ///
 /// Process shortcodes in content.
 ///
@@ -146,6 +152,12 @@ fn resolve_shortcode(
     match name {
         "include" => builtin_include(args_str, site_root, sandbox_root),
         "tabs" => builtin_tabs(args_str, body),
+        "note" => builtin_note(args_str, body),
+        "details" => builtin_details(args_str, body),
+        "figure" => builtin_figure(args_str),
+        "youtube" => builtin_youtube(args_str),
+        "gist" => builtin_gist(args_str),
+        "mermaid" => builtin_mermaid(body),
         _ => render_shortcode(name, args_str, body, shortcode_dir),
     }
 }
@@ -291,6 +303,175 @@ fn builtin_tabs(args_str: &str, body: Option<&str>) -> anyhow::Result<String> {
     Ok(html)
 }
 
+/// Built-in `note` shortcode: callout/admonition box.
+///
+/// Arguments:
+/// - `type` (required): one of `"info"`, `"warning"`, `"danger"`, `"tip"`
+///
+/// Body content is rendered inside a styled callout div.
+fn builtin_note(args_str: &str, body: Option<&str>) -> anyhow::Result<String> {
+    let args = parse_args(args_str);
+    let note_type = args.get("type").ok_or_else(|| {
+        anyhow::anyhow!("note shortcode requires a `type` argument (info, warning, danger, or tip)")
+    })?;
+
+    let (icon, title) = match note_type.as_str() {
+        "info" => (CALLOUT_ICON_NOTE, "Note"),
+        "warning" => (CALLOUT_ICON_WARNING, "Warning"),
+        "danger" => (CALLOUT_ICON_CAUTION, "Danger"),
+        "tip" => (CALLOUT_ICON_TIP, "Tip"),
+        other => {
+            return Err(anyhow::anyhow!(
+                "note shortcode: unknown type '{other}', expected one of: info, warning, danger, tip"
+            ));
+        }
+    };
+
+    let body = body.ok_or_else(|| anyhow::anyhow!("note shortcode requires a body"))?;
+
+    Ok(format!(
+        "<div class=\"callout callout--{note_type}\">\
+         <p class=\"callout__title\">{icon} {title}</p>\
+         <div class=\"callout__body\">\n\n{body}\n\n</div></div>"
+    ))
+}
+
+/// Built-in `details` shortcode: collapsible content section.
+///
+/// Arguments:
+/// - `summary` (required): the clickable summary text
+/// - `open` (optional): `"true"` to render expanded by default
+fn builtin_details(args_str: &str, body: Option<&str>) -> anyhow::Result<String> {
+    let args = parse_args(args_str);
+    let summary = args
+        .get("summary")
+        .ok_or_else(|| anyhow::anyhow!("details shortcode requires a `summary` argument"))?;
+    let body = body.ok_or_else(|| anyhow::anyhow!("details shortcode requires a body"))?;
+    let open_attr = if args.get("open").is_some_and(|v| v == "true") {
+        " open"
+    } else {
+        ""
+    };
+
+    Ok(format!(
+        "<details class=\"details\"{open_attr}>\
+         <summary>{}</summary>\
+         <div class=\"details__body\">\n\n{body}\n\n</div></details>",
+        escape_html(summary)
+    ))
+}
+
+/// Built-in `figure` shortcode: image with optional caption.
+///
+/// Arguments:
+/// - `src` (required): image URL or path
+/// - `alt` (optional): alt text for accessibility
+/// - `caption` (optional): caption text displayed below the image
+/// - `width` (optional): CSS width value (e.g. `"80%"`, `"400px"`)
+fn builtin_figure(args_str: &str) -> anyhow::Result<String> {
+    let args = parse_args(args_str);
+    let src = args
+        .get("src")
+        .ok_or_else(|| anyhow::anyhow!("figure shortcode requires a `src` argument"))?;
+    let alt = args.get("alt").map(|s| s.as_str()).unwrap_or("");
+    let caption = args.get("caption");
+    let width = args.get("width");
+
+    let width_attr = match width {
+        Some(w) => format!(r#" style="width: {}""#, escape_html(w)),
+        None => String::new(),
+    };
+
+    let caption_html = match caption {
+        Some(c) => format!("<figcaption>{}</figcaption>", escape_html(c)),
+        None => String::new(),
+    };
+
+    Ok(format!(
+        "<figure class=\"figure\"{width_attr}>\
+         <img src=\"{}\" alt=\"{}\" loading=\"lazy\">\
+         {caption_html}</figure>",
+        escape_html(src),
+        escape_html(alt),
+    ))
+}
+
+/// Built-in `youtube` shortcode: responsive YouTube embed.
+///
+/// Arguments:
+/// - `id` (required): YouTube video ID
+///
+/// Uses privacy-enhanced mode (`youtube-nocookie.com`).
+fn builtin_youtube(args_str: &str) -> anyhow::Result<String> {
+    let args = parse_args(args_str);
+    let id = args
+        .get("id")
+        .ok_or_else(|| anyhow::anyhow!("youtube shortcode requires an `id` argument"))?;
+
+    Ok(format!(
+        "<div class=\"youtube\">\
+         <iframe src=\"https://www.youtube-nocookie.com/embed/{}\" \
+         frameborder=\"0\" \
+         allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" \
+         allowfullscreen loading=\"lazy\"></iframe></div>",
+        escape_html(id)
+    ))
+}
+
+/// Built-in `gist` shortcode: embed a GitHub Gist.
+///
+/// Arguments:
+/// - `url` (required): full GitHub Gist URL (e.g. `"https://gist.github.com/user/abc123"`)
+/// - `file` (optional): specific file from the gist to embed
+fn builtin_gist(args_str: &str) -> anyhow::Result<String> {
+    let args = parse_args(args_str);
+    let url = args
+        .get("url")
+        .ok_or_else(|| anyhow::anyhow!("gist shortcode requires a `url` argument"))?;
+
+    let file_param = match args.get("file") {
+        Some(f) => format!("?file={}", escape_html(f)),
+        None => String::new(),
+    };
+
+    Ok(format!(
+        "<div class=\"gist\"><script src=\"{}.js{file_param}\"></script></div>",
+        escape_html(url)
+    ))
+}
+
+/// Built-in `mermaid` shortcode: render a Mermaid diagram.
+///
+/// Body content is the Mermaid diagram definition.
+fn builtin_mermaid(body: Option<&str>) -> anyhow::Result<String> {
+    let body = body.ok_or_else(|| anyhow::anyhow!("mermaid shortcode requires a body"))?;
+
+    Ok(format!(
+        "<pre class=\"mermaid\">{}</pre>",
+        escape_html(body)
+    ))
+}
+
+/// Escape HTML special characters for safe attribute/content insertion.
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
+}
+
+/// SVG icons for callout types (used by both `note` shortcode and markdown callouts).
+pub(crate) const CALLOUT_ICON_NOTE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>"#;
+
+pub(crate) const CALLOUT_ICON_TIP: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863.5 8 .5s5.5 1.81 5.5 4.75c0 1.516-.701 2.5-1.328 3.259a10.56 10.56 0 0 0-.268.32c-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>"#;
+
+pub(crate) const CALLOUT_ICON_WARNING: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>"#;
+
+pub(crate) const CALLOUT_ICON_CAUTION: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>"#;
+
+pub(crate) const CALLOUT_ICON_IMPORTANT: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>"#;
+
 /// Render a single shortcode
 fn render_shortcode(
     name: &str,
@@ -355,9 +536,9 @@ mod tests {
     #[test]
     fn test_body_shortcode() {
         let tmp = TempDir::new().unwrap();
-        let dir = setup_shortcode_dir(&tmp, "note", r#"<div class="{{ kind }}">{{ body }}</div>"#);
+        let dir = setup_shortcode_dir(&tmp, "alert", r#"<div class="{{ kind }}">{{ body }}</div>"#);
         let result = process_shortcodes(
-            r#"{% note(kind="warning") %}Be careful!{% end %}"#,
+            r#"{% alert(kind="warning") %}Be careful!{% end %}"#,
             &dir,
             tmp.path(),
             tmp.path(),
@@ -509,6 +690,128 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result.trim(), "Actual body");
+    }
+
+    #[test]
+    fn test_note_shortcode() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{% note(type="info") %}This is important.{% end %}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains("callout callout--info"));
+        assert!(result.contains("callout__title"));
+        assert!(result.contains("This is important."));
+    }
+
+    #[test]
+    fn test_note_shortcode_invalid_type() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{% note(type="invalid") %}text{% end %}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("unknown type"));
+    }
+
+    #[test]
+    fn test_note_shortcode_missing_type() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{% note() %}text{% end %}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_details_shortcode() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{% details(summary="Click me") %}Hidden content{% end %}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains("<details"));
+        assert!(result.contains("<summary>Click me</summary>"));
+        assert!(result.contains("Hidden content"));
+        assert!(!result.contains("open"));
+    }
+
+    #[test]
+    fn test_details_shortcode_open() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{% details(summary="Expanded", open="true") %}Content{% end %}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains(" open"));
+    }
+
+    #[test]
+    fn test_figure_shortcode() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{{ figure(src="/img/photo.png", alt="A photo", caption="My photo") }}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains("<figure"));
+        assert!(result.contains(r#"src="/img/photo.png""#));
+        assert!(result.contains(r#"alt="A photo""#));
+        assert!(result.contains("<figcaption>My photo</figcaption>"));
+    }
+
+    #[test]
+    fn test_figure_shortcode_xss_escape() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{{ figure(src="x\" onload=\"alert(1)", alt="<script>") }}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(!result.contains("onload"));
+        assert!(!result.contains("<script>"));
+    }
+
+    #[test]
+    fn test_youtube_shortcode() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{{ youtube(id="dQw4w9WgXcQ") }}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains("youtube-nocookie.com/embed/dQw4w9WgXcQ"));
+        assert!(result.contains("allowfullscreen"));
+    }
+
+    #[test]
+    fn test_gist_shortcode() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{{ gist(url="https://gist.github.com/user/abc123") }}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains("https://gist.github.com/user/abc123.js"));
+    }
+
+    #[test]
+    fn test_gist_shortcode_with_file() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{{ gist(url="https://gist.github.com/user/abc123", file="hello.py") }}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains("?file=hello.py"));
+    }
+
+    #[test]
+    fn test_mermaid_shortcode() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = r#"{% mermaid() %}graph LR; A-->B{% end %}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path()).unwrap();
+        assert!(result.contains("<pre class=\"mermaid\">"));
+        assert!(result.contains("graph LR; A--&gt;B"));
     }
 
     #[test]
