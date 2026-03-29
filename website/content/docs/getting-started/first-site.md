@@ -84,22 +84,10 @@ tags = ["intro", "hello"]
 +++
 ```
 
-## Deploying to Netlify
-
-1. Build your site:
+## Building for production
 
 ```bash
 zorto build
 ```
 
-2. Add a `netlify.toml` to your repo root:
-
-```toml
-[build]
-command = "pip install zorto && zorto build"
-publish = "public"
-```
-
-3. Connect your repository in the Netlify dashboard. Every push triggers a build.
-
-See [deploy to Netlify](@/docs/how-to/deploy-netlify.md) for more details.
+This generates a static `public/` directory that can be hosted anywhere.
