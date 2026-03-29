@@ -48,7 +48,6 @@
     canvas.style.display = 'none';
     return;
   }
-  canvas.style.pointerEvents = 'auto';
   const ctx = canvas.getContext('2d');
   const violet = [167, 139, 250];
   const cyan = [34, 211, 238];
@@ -80,20 +79,20 @@
     return a.map((v, i) => Math.round(v + (b[i] - v) * t));
   }
 
-  // mouse + touch support
+  // mouse + touch support — listen on hero parent so text overlay doesn't block
+  var hero = canvas.parentElement;
   function setMouse(ex, ey) {
     var r = canvas.getBoundingClientRect();
     mouse.x = ex - r.left;
     mouse.y = ey - r.top;
   }
-  canvas.addEventListener('mousemove', function(e) { setMouse(e.clientX, e.clientY); });
-  canvas.addEventListener('mouseleave', function() { mouse.x = -9999; mouse.y = -9999; });
-  canvas.addEventListener('touchmove', function(e) {
-    e.preventDefault();
+  hero.addEventListener('mousemove', function(e) { setMouse(e.clientX, e.clientY); });
+  hero.addEventListener('mouseleave', function() { mouse.x = -9999; mouse.y = -9999; });
+  hero.addEventListener('touchmove', function(e) {
     var touch = e.touches[0];
     setMouse(touch.clientX, touch.clientY);
-  }, { passive: false });
-  canvas.addEventListener('touchend', function() { mouse.x = -9999; mouse.y = -9999; });
+  }, { passive: true });
+  hero.addEventListener('touchend', function() { mouse.x = -9999; mouse.y = -9999; });
 
   function getWaveData(baseX, baseY, t) {
     var wave1 = Math.sin(baseX * 0.015 + t * 0.8) * 6;
