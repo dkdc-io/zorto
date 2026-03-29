@@ -393,7 +393,10 @@ impl Site {
     }
 
     /// Validate site without writing output
-    pub fn check(&mut self) -> anyhow::Result<()> {
+    /// Check the site for errors and lint warnings.
+    ///
+    /// When `deny_warnings` is true, lint warnings are promoted to errors.
+    pub fn check(&mut self, deny_warnings: bool) -> anyhow::Result<()> {
         if !self.drafts {
             self.pages.retain(|_, p| !p.draft);
         }
@@ -403,6 +406,19 @@ impl Site {
 
         let templates_dir = self.root.join("templates");
         let _tera = templates::setup_tera(&templates_dir, &self.config, &self.sections)?;
+
+        // Lint templates
+        let warnings = crate::lint::lint_templates(&templates_dir);
+        for w in &warnings {
+            eprintln!("{w}");
+        }
+        if deny_warnings && !warnings.is_empty() {
+            anyhow::bail!(
+                "{} lint warning{} found (--deny-warnings is set)",
+                warnings.len(),
+                if warnings.len() == 1 { "" } else { "s" }
+            );
+        }
 
         Ok(())
     }

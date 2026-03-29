@@ -101,6 +101,9 @@ enum Commands {
         /// Include draft pages
         #[arg(long)]
         drafts: bool,
+        /// Treat lint warnings as errors
+        #[arg(long)]
+        deny_warnings: bool,
     },
 }
 
@@ -183,12 +186,15 @@ where
             };
             init_site(&target, &template)?;
         }
-        Commands::Check { drafts } => {
+        Commands::Check {
+            drafts,
+            deny_warnings,
+        } => {
             let output = root.join("public");
             let mut site = site::Site::load(&root, &output, drafts)?;
             site.no_exec = cli.no_exec;
             site.sandbox = sandbox;
-            site.check()?;
+            site.check(deny_warnings)?;
             println!("Site check passed.");
         }
     }

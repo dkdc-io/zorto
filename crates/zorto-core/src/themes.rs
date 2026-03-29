@@ -85,15 +85,59 @@ impl Theme {
                 ),
             ],
             #[cfg(feature = "theme-light")]
-            Self::Light => vec![(
-                "base.html",
-                include_str!("../themes/light/templates/base.html"),
-            )],
+            Self::Light => vec![
+                (
+                    "base.html",
+                    include_str!("../themes/light/templates/base.html"),
+                ),
+                (
+                    "page.html",
+                    include_str!("../themes/light/templates/page.html"),
+                ),
+                (
+                    "section.html",
+                    include_str!("../themes/light/templates/section.html"),
+                ),
+                (
+                    "index.html",
+                    include_str!("../themes/light/templates/index.html"),
+                ),
+                (
+                    "404.html",
+                    include_str!("../themes/light/templates/404.html"),
+                ),
+                (
+                    "macros/post.html",
+                    include_str!("../themes/light/templates/macros/post.html"),
+                ),
+            ],
             #[cfg(feature = "theme-dark")]
-            Self::Dark => vec![(
-                "base.html",
-                include_str!("../themes/dark/templates/base.html"),
-            )],
+            Self::Dark => vec![
+                (
+                    "base.html",
+                    include_str!("../themes/dark/templates/base.html"),
+                ),
+                (
+                    "page.html",
+                    include_str!("../themes/dark/templates/page.html"),
+                ),
+                (
+                    "section.html",
+                    include_str!("../themes/dark/templates/section.html"),
+                ),
+                (
+                    "index.html",
+                    include_str!("../themes/dark/templates/index.html"),
+                ),
+                (
+                    "404.html",
+                    include_str!("../themes/dark/templates/404.html"),
+                ),
+                (
+                    "macros/post.html",
+                    include_str!("../themes/dark/templates/macros/post.html"),
+                ),
+            ],
         }
     }
 

@@ -30,6 +30,7 @@ pub mod themes;
 
 pub(crate) mod execute;
 pub(crate) mod links;
+pub mod lint;
 pub(crate) mod sass;
 pub(crate) mod shortcodes;
 pub(crate) mod templates;
