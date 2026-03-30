@@ -37,7 +37,8 @@ $nav-collapse-width: 600px;
 // ========================================
 // Reset & Base
 // ========================================
-html { box-sizing: border-box; }
+html { box-sizing: border-box; scroll-behavior: smooth; }
+section[id] { scroll-margin-top: 80px; }
 *, *:before, *:after { box-sizing: inherit; }
 
 body {

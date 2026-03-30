@@ -61,6 +61,7 @@ html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
 }
+section[id] { scroll-margin-top: 80px; }
 
 body {
   font-family: "Public Sans", system-ui, -apple-system, sans-serif;
