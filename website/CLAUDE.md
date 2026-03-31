@@ -9,7 +9,7 @@ Project site for [zorto](https://github.com/dkdc-io/zorto). Built with zorto.
 
 ## Styling
 
-Dark mode default with light mode toggle. Color scheme: violet/purple neon + cyan accents. Same theme as dkdc.io / dkdc.sh.
+Dark mode default with light mode toggle. Color scheme: blue + emerald green accents (zorto brand). Uses the `zorto` theme (separate from dkdc).
 
 ## Content style
 

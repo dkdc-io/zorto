@@ -1,8 +1,18 @@
 # zorto.dev: zorto configuration
 base_url = "https://zorto.dev"
-title = "zorto.dev"
-theme = "dkdc"
+title = "Zorto"
+description = "The AI-native static site generator (SSG) with executable code blocks."
+theme = "zorto"
 generate_llms_txt = true
+generate_md_files = true
+
+[[content_dirs]]
+path = "../docs"
+url_prefix = "docs"
+template = "docs.html"
+section_template = "docs-section.html"
+sort_by = "title"
+rewrite_links = true
 
 [markdown]
 highlight_code = true
@@ -13,23 +23,25 @@ external_links_no_referrer = true
 smart_punctuation = true
 
 [extra]
-logo_image = "https://dkdc.atl1.cdn.digitaloceanspaces.com/images/logos/dkdc2-mark-transparent.png"
-logo_text = "zorto"
-logo_tld = ".dev"
+logo_image = "/zorto-mark-transparent.png"
+logo_text = "Zorto"
+logo_tld = ""
 author = "Cody"
-default_og_image = "dkdc2-logo-dark.png"
-favicon = "/dkdc2-favicon-32.png"
+default_og_image = "zorto-logo-dark.png"
+favicon = "/zorto-favicon-32.png"
 favicon_mimetype = "image/png"
+enable_md_fab = true
+md_fab_exclude = ["/"]
 
 menu_items = [
-  { name = "getting started", url = "/docs/getting-started/" },
-  { name = "concepts", url = "/docs/concepts/" },
-  { name = "how-to", url = "/docs/how-to/" },
-  { name = "reference", url = "/docs/reference/" },
+  { name = "Getting started", url = "/docs/getting-started/" },
+  { name = "Concepts", url = "/docs/concepts/" },
+  { name = "How-to", url = "/docs/how-to/" },
+  { name = "Reference", url = "/docs/reference/" },
 ]
 
 menu_items_right = [
-  { name = "blog", url = "/posts" },
+  { name = "Blog", url = "/posts" },
   { name = "llms.txt", url = "/llms.txt" },
 ]
 
@@ -38,21 +50,21 @@ social_links = [
 ]
 
 hero_title = "Zorto"
-hero_subtitle = "A fast static site generator with executable code blocks."
+hero_subtitle = "The AI-native static site generator (SSG) with executable code blocks."
 hero_actions = [
-  { name = "getting started", url = "/docs/getting-started/", style = "default" },
-  { name = "concepts", url = "/docs/concepts/", style = "outline" },
-  { name = "how-to", url = "/docs/how-to/", style = "outline" },
-  { name = "reference", url = "/docs/reference/", style = "outline" },
+  { name = "Getting started", url = "/docs/getting-started/", style = "default" },
+  { name = "Concepts", url = "/docs/concepts/", style = "outline" },
+  { name = "How-to", url = "/docs/how-to/", style = "outline" },
+  { name = "Reference", url = "/docs/reference/", style = "outline" },
 ]
 
 features = [
-  { name = "fast", description = "Written in Rust. Render your website in milliseconds." },
+  { name = "Fast", description = "Written in Rust. Render your website in milliseconds." },
   { name = "AI-native", description = "Built for AI to create your website in minutes & maintain it with ease." },
-  { name = "executable code blocks", description = "Run Python and Bash at build time. Output rendered inline." },
-  { name = "built-in themes", description = "Ship with dkdc, light, and dark themes. Override anything locally." },
-  { name = "shortcodes & callouts", description = "Built-in note, details, figure, youtube, mermaid shortcodes. GitHub-style callout alerts." },
-  { name = "free & open source", description = "MIT-licensed forever." },
+  { name = "Executable code blocks", description = "Run Python and Bash at build time. Output rendered inline." },
+  { name = "Built-in themes", description = "Ship with zorto, dkdc, light, and dark themes. Override anything locally." },
+  { name = "Shortcodes & callouts", description = "Built-in note, details, figure, youtube, mermaid shortcodes. GitHub-style callout alerts." },
+  { name = "Free & open source", description = "MIT-licensed forever." },
 ]
 
 copyright_html = '<a href="/">Zorto</a> by <a href="https://dkdc.io" target="_blank" rel="noopener">dkdc.io</a> via <a href="https://zorto.dev" target="_blank" rel="noopener">Zorto</a>'

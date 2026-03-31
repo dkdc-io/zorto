@@ -18,10 +18,10 @@
 
             {%- if current_section %}
             <div class="docs-nav__section">
-                <h3><a href="{{ current_section.permalink | replace(from=config.base_url, to="") }}">{{ current_section.title | lower }}</a></h3>
+                <h3><a href="{{ current_section.permalink | replace(from=config.base_url, to="") }}">{{ current_section.title }}</a></h3>
                 <ul>
                 {%- for p in current_section.pages %}
-                    <li{% if page.permalink == p.permalink %} class="active"{% endif %}><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title | lower }}</a></li>
+                    <li{% if page.permalink == p.permalink %} class="active"{% endif %}><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title }}</a></li>
                 {%- endfor %}
                 </ul>
             </div>
@@ -31,7 +31,7 @@
 
     <div class="docs-content">
         <div class="post">
-            <h1 class="post-title">{{ page.title | lower }}</h1>
+            <h1 class="post-title">{{ page.title }}</h1>
             <div class="post-content">{{ page.content | safe }}</div>
         </div>
     </div>
