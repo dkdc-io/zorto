@@ -66,4 +66,4 @@ for i in range(5):
 ```
 
 > [!TIP]
-> If you're reading elsewhere, see [https://zorto.dev](https://zorto.dev) for the rendered results of the code blocks above.
+> If you're reading elsewhere, see [https://zorto.dev](https://zorto.dev/#executable-code-blocks) for the rendered results of the code blocks above.
