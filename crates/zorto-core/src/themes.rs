@@ -192,7 +192,10 @@ impl Theme {
             #[cfg(feature = "theme-dark")]
             Self::Dark => vec![("style.scss", include_str!("../themes/dark/sass/style.scss"))],
             #[cfg(feature = "theme-zorto")]
-            Self::Zorto => vec![("style.scss", include_str!("../themes/zorto/sass/style.scss"))],
+            Self::Zorto => vec![(
+                "style.scss",
+                include_str!("../themes/zorto/sass/style.scss"),
+            )],
             _ => vec![],
         }
     }
