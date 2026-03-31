@@ -211,7 +211,7 @@ async fn serve_file(State(state): State<AppState>, req: Request<Body>) -> Respon
         "woff2" => "font/woff2",
         "pdf" => "application/pdf",
         "xml" => "application/xml",
-        "txt" => "text/plain",
+        "txt" | "sh" => "text/plain",
         _ => "application/octet-stream",
     };
 
