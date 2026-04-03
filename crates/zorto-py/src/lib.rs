@@ -18,7 +18,7 @@ fn run_cli(argv: Vec<String>) -> PyResult<()> {
 // --- Python API types ---
 
 /// Zorto site configuration.
-#[pyclass(frozen, name = "Config")]
+#[pyclass(frozen, skip_from_py_object, name = "Config")]
 #[derive(Clone)]
 struct PyConfig {
     inner: RustConfig,
@@ -95,7 +95,7 @@ impl PyConfig {
 }
 
 /// A content page.
-#[pyclass(frozen, name = "Page")]
+#[pyclass(frozen, skip_from_py_object, name = "Page")]
 #[derive(Clone)]
 struct PyPage {
     inner: RustPage,
@@ -187,7 +187,7 @@ impl PyPage {
 }
 
 /// A content section.
-#[pyclass(frozen, name = "Section")]
+#[pyclass(frozen, skip_from_py_object, name = "Section")]
 #[derive(Clone)]
 struct PySection {
     inner: RustSection,
