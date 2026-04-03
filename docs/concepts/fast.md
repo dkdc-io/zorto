@@ -14,7 +14,10 @@ Typical result: under 1 second total. The build pipeline itself takes ~50ms; the
 
 ## Architecture
 
-{{ layers(items="Rust:Compiled to native code. No garbage collector pauses.:language|Efficient pipeline:Minimal allocations, streaming I/O. Pages rendered in parallel.:build|Embedded themes:Templates and styles compiled into the binary. No filesystem reads to load them.:themes|Self-contained:No runtime dependencies. No Node.js, no Ruby. Python is optional for executable code blocks.:binary") }}
+- **Rust.** Compiled to native code. No garbage collector pauses.
+- **Efficient pipeline.** Minimal allocations, streaming I/O, parallel page rendering.
+- **Embedded themes.** Templates and styles compiled into the binary.
+- **Self-contained.** No runtime dependencies. Python is optional (for executable code blocks).
 
 ## In practice
 

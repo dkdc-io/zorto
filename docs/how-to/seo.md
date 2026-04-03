@@ -2,7 +2,11 @@
 
 Configure your Zorto site for search engine visibility.
 
-{{ layers(items="Content:title and description on every page:frontmatter|Meta tags:Open Graph, Twitter Cards, canonical URLs:templates|Discovery:sitemap.xml, robots.txt, llms.txt:automatic", caption="Zorto handles the bottom two layers automatically with built-in themes. You provide the content.") }}
+Three layers:
+
+1. **Content** — `title` and `description` in every page's frontmatter (you write this)
+2. **Meta tags** — Open Graph, Twitter Cards, canonical URLs (built-in themes handle this)
+3. **Discovery** — sitemap.xml, robots.txt, llms.txt (Zorto generates these automatically)
 
 > [!TIP]
 > If you use a built-in theme (`zorto`, `dkdc`, `light`, `dark`), Open Graph tags, canonical URLs, and Twitter Card tags are already included. The sections below show how to set them up manually if you use custom templates.

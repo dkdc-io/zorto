@@ -2,7 +2,7 @@
 
 Zorto can execute Python and Bash code blocks at build time and render their output inline.
 
-{{ flow(steps="Write:Markdown with code blocks|Parse:Find executable blocks|Execute:Run via PyO3 or shell|Render:Output inlined in HTML", caption="Code runs at build time. The output is baked into static HTML — no JavaScript, no runtime.") }}
+{{ flow(steps="Write:Markdown with code blocks|Parse:Find executable blocks|Execute:Run via PyO3 or shell|Render:Output inlined in HTML") }}
 
 ## Python blocks
 

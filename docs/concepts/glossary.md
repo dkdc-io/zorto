@@ -13,7 +13,15 @@ Definitions for web and SSG terms used throughout the Zorto docs. Skip to the se
 
 A URL (Uniform Resource Locator) is the full address of any page on the web. Every URL has the same anatomy:
 
-{{ layers(items="https://:Protocol — the secure connection (see HTTPS below):protocol|app.:Subdomain — an optional prefix that points to a different server:optional|zorto:Second-level domain (SLD) — the name you buy and own:your name|.dev:Top-level domain (TLD) — the ending (.com, .dev, .org, etc.):extension|/docs/concepts/:Path — which page on the site:page") }}
+`https://` `app.` `zorto` `.dev` `/docs/concepts/`
+
+| Part | Name | What it is |
+|------|------|-----------|
+| `https://` | Protocol | Secure connection |
+| `app.` | Subdomain | Optional prefix pointing to a different server |
+| `zorto` | Second-level domain | The name you buy and own |
+| `.dev` | Top-level domain (TLD) | The extension (.com, .dev, .org, etc.) |
+| `/docs/concepts/` | Path | Which page on the site |
 
 When you set `base_url = "https://zorto.dev"` in Zorto's `config.toml`, you're setting the protocol, domain, and TLD. Zorto generates the paths from your content file structure.
 
@@ -37,7 +45,13 @@ The last part of a domain — `.com`, `.dev`, `.org`, etc. Different TLDs have d
 
 A prefix before your domain name, separated by a dot. `app.zorto.dev` is a subdomain of `zorto.dev`. Each subdomain can point to a completely different server:
 
-{{ layers(items="app.zorto.dev:Points to a VPS at 164.90.252.58:different server|www.zorto.dev:Redirects to zorto.dev (same site):redirect|zorto.dev:Points to Netlify:main site", caption="Different subdomains can serve completely different applications.") }}
+| Subdomain | Points to |
+|-----------|-----------|
+| `app.zorto.dev` | A VPS at 164.90.252.58 |
+| `www.zorto.dev` | Redirects to `zorto.dev` |
+| `zorto.dev` | Netlify |
+
+Each subdomain can point to a completely different server.
 
 The old `www.` prefix is actually a subdomain too — it was common in the early web but most modern sites redirect it to the bare domain.
 
@@ -89,7 +103,14 @@ A website made entirely of pre-built files — HTML, CSS, JavaScript, images —
 
 A service optimized for serving pre-built static files to visitors worldwide:
 
-{{ layers(items="Netlify:Auto-deploy from Git, instant rollbacks, form handling:popular|Vercel:Fast edge network, preview deployments, serverless functions:popular|Cloudflare Pages:Global CDN, unlimited bandwidth, Web Analytics:popular|GitHub Pages:Free for public repos, integrated with GitHub Actions:free", caption="All handle HTTPS, CDN, and continuous deployment automatically.") }}
+| Provider | Highlights |
+|----------|-----------|
+| [Netlify](https://netlify.com) | Auto-deploy from Git, instant rollbacks |
+| [Vercel](https://vercel.com) | Fast edge network, preview deployments |
+| [Cloudflare Pages](https://pages.cloudflare.com) | Global CDN, unlimited bandwidth |
+| [GitHub Pages](https://pages.github.com) | Free for public repos |
+
+All handle HTTPS, CDN, and continuous deployment automatically. See [how to deploy](../how-to/deploy.md).
 
 Push to your Git repo and your site updates within seconds.
 

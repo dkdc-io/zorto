@@ -16,9 +16,12 @@ The codebase is Rust (core engine, CLI, themes) with Python bindings via PyO3. I
 
 ## Distribution
 
-Zorto is available through multiple channels. The same Rust binary powers all of them.
-
-{{ layers(items="Shell installer:curl -LsSf https://dkdc.sh/zorto | sh:any platform|PyPI:uv tool install zorto:Python users|crates.io:cargo install zorto:Rust users|Source:git clone https://github.com/dkdc-io/zorto:contributors", caption="Same binary, multiple install paths. Pick whichever fits your toolchain.") }}
+| Channel | Command |
+|---------|---------|
+| Shell installer | `curl -LsSf https://dkdc.sh/zorto \| sh` |
+| PyPI | `uv tool install zorto` |
+| crates.io | `cargo install zorto` |
+| Source | `git clone https://github.com/dkdc-io/zorto` |
 
 ## Further reading
 
