@@ -38,6 +38,24 @@ bin/bump-version   # Bump version (--patch, --minor (default), --major)
 Rust checks: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`
 Python checks: `ruff check .`, `ruff format --check .`, `ty check`
 
+## website (zorto.dev)
+
+The `website/` directory is the zorto.dev project site, built with zorto itself.
+
+```bash
+bin/preview        # Build + preview with --sandbox . (uses cargo run)
+website/bin/preview # Same thing (delegates to bin/preview)
+```
+
+**Important**: The website uses `content_dirs` to pull in `../docs` and shortcodes like `configref` that reference files outside the website directory (e.g. `../crates/`). Always use `--sandbox .` (repo root) when building:
+
+```bash
+cargo run -p zorto -- --root website --sandbox . build
+cargo run -p zorto -- --root website --sandbox . preview --open
+```
+
+Never run `zorto build` directly inside `website/` — it will fail with sandbox errors. Use `bin/preview` or pass `--sandbox .` from the repo root.
+
 ## Claude Code instructions
 
 - DO NOT depend on any dkdc-* packages. This is a standalone open source project.

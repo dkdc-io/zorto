@@ -50,11 +50,28 @@
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced) { canvas.style.display = 'none'; return; }
   const ctx = canvas.getContext('2d');
-  const colors = [
-    [59, 130, 246],  // blue
-    [52, 211, 153],  // green
-    [40, 170, 200],  // teal blend
-  ];
+  // Read accent colors from CSS variables so particles adapt to the active theme
+  function parseRgb(str) {
+    var m = str.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (m) return [+m[1], +m[2], +m[3]];
+    // hex fallback
+    var h = str.replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  function getColors() {
+    var s = getComputedStyle(document.documentElement);
+    var c1 = parseRgb(s.getPropertyValue('--accent').trim() || 'rgb(59,130,246)');
+    var c2 = parseRgb(s.getPropertyValue('--accent-secondary').trim() || 'rgb(52,211,153)');
+    var c3 = [Math.round((c1[0]+c2[0])/2), Math.round((c1[1]+c2[1])/2), Math.round((c1[2]+c2[2])/2)];
+    return [c1, c2, c3];
+  }
+  var colors = getColors();
+  // Update colors when stylesheet changes (theme switch)
+  new MutationObserver(function() { colors = getColors(); }).observe(
+    document.getElementById('theme-stylesheet'),
+    { attributes: true, attributeFilter: ['href'] }
+  );
   let particles = [];
   const count = 60;
   const fpsInterval = 1000 / 30;

@@ -45,6 +45,12 @@ pub struct Config {
     /// Generate `.md` output files alongside HTML for every page (default: `false`).
     #[serde(default)]
     pub generate_md_files: bool,
+    /// Compile CSS for all available themes as `style-{name}.css` (default: `false`).
+    ///
+    /// When enabled, every built-in theme's SCSS is compiled in addition to the
+    /// active theme's `style.css`. Useful for theme preview/switcher pages.
+    #[serde(default)]
+    pub compile_all_themes: bool,
     /// External content directories to load as pages/sections.
     #[serde(default, skip_serializing)]
     pub content_dirs: Vec<ContentDirConfig>,

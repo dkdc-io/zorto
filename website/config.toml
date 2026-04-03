@@ -3,8 +3,10 @@ base_url = "https://zorto.dev"
 title = "Zorto"
 description = "The AI-native static site generator (SSG) with executable code blocks."
 theme = "zorto"
+generate_feed = true
 generate_llms_txt = true
 generate_md_files = true
+compile_all_themes = true
 
 [[content_dirs]]
 path = "../docs"
@@ -31,7 +33,7 @@ default_og_image = "zorto-logo-dark.png"
 favicon = "/zorto-favicon-32.png"
 favicon_mimetype = "image/png"
 enable_md_fab = true
-md_fab_exclude = ["/"]
+md_fab_exclude = []
 
 menu_items = [
   { name = "Getting started", url = "/docs/getting-started/" },
@@ -59,7 +61,7 @@ hero_actions = [
 ]
 
 features = [
-  { name = "Free & open source", description = "MIT-licensed forever. Built in Rust.", url = "/docs/concepts/open-source/" },
+  { name = "Free & open source", description = "MIT-licensed forever.", url = "/docs/concepts/open-source/" },
   { name = "AI-native", description = "Explicit contracts, compiler-like quality checks, llms.txt for consumption.", url = "/docs/concepts/ai-native/" },
   { name = "Executable code blocks", description = "Run Python and Bash at build time. Output rendered inline.", url = "/docs/concepts/executable-code/" },
   { name = "Fast", description = "Written in Rust. Build your site in milliseconds.", url = "/docs/concepts/fast/" },

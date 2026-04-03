@@ -6,13 +6,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <meta name="robots" content="noodp"/>
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style.css" id="theme-stylesheet">
     <script>
       (function() {
-        const saved = localStorage.getItem('theme');
-        const preferDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var saved = localStorage.getItem('theme');
+        var preferDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         if (saved === 'dark' || (!saved && preferDark)) {
           document.documentElement.setAttribute('data-theme', 'dark');
+        }
+        var siteTheme = localStorage.getItem('site-theme');
+        if (siteTheme && siteTheme !== '{{ config.theme | default(value="light") }}') {
+          document.getElementById('theme-stylesheet').href = '/style-' + siteTheme + '.css';
         }
       })();
     </script>
@@ -45,6 +49,14 @@
     {%- if config.extra.favicon %}
     <link rel="icon" type="{{ config.extra.favicon_mimetype | default(value="image/png") }}" href="{{ config.extra.favicon }}">
     {%- endif %}
+    {%- if config.generate_feed %}
+    <link rel="alternate" type="application/atom+xml" title="{{ config.title }} Feed" href="/atom.xml">
+    {%- endif %}
+    {%- if config.compile_all_themes %}
+    {%- for name in ["dkdc", "light", "dark", "zorto"] %}
+    <link rel="prefetch" href="/style-{{ name }}.css" as="style">
+    {%- endfor %}
+    {%- endif %}
     {%- block extra_head %}{% endblock extra_head %}
 </head>
 <body>
@@ -75,12 +87,30 @@
         </ul>
         {%- endif %}
         {%- if config.extra.menu_items_right %}
-        <ul class="navbar__links navbar__links--right">
+        <div class="navbar__right-items">
         {%- for item in config.extra.menu_items_right %}
             {%- set item_url = item.url | replace(from="$BASE_URL", to=config.base_url) %}
-            <li><a href="{{ item_url }}"{% if item.external | default(value=false) %} target="_blank" rel="noopener"{% endif %}>{{ item.name }}</a></li>
+            <a href="{{ item_url }}" class="navbar__right-btn"{% if item.external | default(value=false) %} target="_blank" rel="noopener"{% endif %}>{{ item.name }}</a>
         {%- endfor %}
-        </ul>
+        {%- if config.compile_all_themes %}
+        <div class="theme-switcher" id="theme-switcher">
+            <button class="theme-switcher__btn navbar__right-btn" aria-label="Themes" title="Switch theme">
+                <span>Themes</span>
+                <svg class="theme-switcher__chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="theme-switcher__menu" id="theme-switcher-menu" hidden>
+                <button class="theme-switcher__option" data-theme-name="zorto">zorto</button>
+                <button class="theme-switcher__option" data-theme-name="dkdc">dkdc</button>
+                <button class="theme-switcher__option" data-theme-name="light">light</button>
+                <button class="theme-switcher__option" data-theme-name="dark">dark</button>
+                <button class="theme-switcher__option" data-theme-name="ember">ember</button>
+                <button class="theme-switcher__option" data-theme-name="forest">forest</button>
+                <button class="theme-switcher__option" data-theme-name="ocean">ocean</button>
+                <button class="theme-switcher__option" data-theme-name="rose">rose</button>
+            </div>
+        </div>
+        {%- endif %}
+        </div>
         {%- endif %}
         </div>
         <label for="nav-toggle" class="navbar__hamburger" role="button" aria-label="Toggle menu" aria-expanded="false">
@@ -97,7 +127,7 @@
         </a>
         {%- endfor %}
         {%- endif %}
-        <button class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+        <button class="theme-toggle" aria-label="Toggle light/dark" title="Toggle light/dark">
             <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
@@ -147,6 +177,50 @@
   });
 })();
 </script>
+{%- if config.compile_all_themes %}
+<script>
+(function() {
+  var switcher = document.getElementById('theme-switcher');
+  if (!switcher) return;
+  var btn = switcher.querySelector('.theme-switcher__btn');
+  var menu = document.getElementById('theme-switcher-menu');
+  var styleLink = document.getElementById('theme-stylesheet');
+  var defaultTheme = '{{ config.theme | default(value="light") }}';
+  var currentSiteTheme = localStorage.getItem('site-theme') || defaultTheme;
+
+  function applySiteTheme(name) {
+    var href = (name === defaultTheme) ? '/style.css' : '/style-' + name + '.css';
+    if (styleLink.getAttribute('href') !== href) {
+      styleLink.setAttribute('href', href);
+    }
+    localStorage.setItem('site-theme', name);
+    currentSiteTheme = name;
+    var mode = localStorage.getItem('theme');
+    if (mode === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    menu.querySelectorAll('.theme-switcher__option').forEach(function(o) {
+      o.classList.toggle('active', o.getAttribute('data-theme-name') === name);
+    });
+  }
+
+  applySiteTheme(currentSiteTheme);
+
+  btn.addEventListener('click', function() { menu.toggleAttribute('hidden'); });
+  menu.querySelectorAll('.theme-switcher__option').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      applySiteTheme(this.getAttribute('data-theme-name'));
+      menu.setAttribute('hidden', '');
+    });
+  });
+  document.addEventListener('click', function(e) {
+    if (!switcher.contains(e.target)) menu.setAttribute('hidden', '');
+  });
+})();
+</script>
+{%- endif %}
 <script>
 (function() {
   var clipSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';

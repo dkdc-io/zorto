@@ -24,6 +24,18 @@ pub enum Theme {
     /// Blue/green dark-default theme with animations. The zorto brand theme.
     #[cfg(feature = "theme-zorto")]
     Zorto,
+    /// Orange/amber dark-default theme. Warm and cozy.
+    #[cfg(feature = "theme-ember")]
+    Ember,
+    /// Green/lime dark-default theme. Natural and earthy.
+    #[cfg(feature = "theme-forest")]
+    Forest,
+    /// Teal/blue light-default theme. Calm and professional.
+    #[cfg(feature = "theme-ocean")]
+    Ocean,
+    /// Pink/purple light-default theme. Soft and modern.
+    #[cfg(feature = "theme-rose")]
+    Rose,
 }
 
 impl Theme {
@@ -41,6 +53,14 @@ impl Theme {
             "dark" => Some(Self::Dark),
             #[cfg(feature = "theme-zorto")]
             "zorto" => Some(Self::Zorto),
+            #[cfg(feature = "theme-ember")]
+            "ember" => Some(Self::Ember),
+            #[cfg(feature = "theme-forest")]
+            "forest" => Some(Self::Forest),
+            #[cfg(feature = "theme-ocean")]
+            "ocean" => Some(Self::Ocean),
+            #[cfg(feature = "theme-rose")]
+            "rose" => Some(Self::Rose),
             _ => None,
         }
     }
@@ -57,6 +77,14 @@ impl Theme {
         names.push("dark");
         #[cfg(feature = "theme-zorto")]
         names.push("zorto");
+        #[cfg(feature = "theme-ember")]
+        names.push("ember");
+        #[cfg(feature = "theme-forest")]
+        names.push("forest");
+        #[cfg(feature = "theme-ocean")]
+        names.push("ocean");
+        #[cfg(feature = "theme-rose")]
+        names.push("rose");
         names
     }
 
@@ -174,29 +202,197 @@ impl Theme {
                     include_str!("../themes/zorto/templates/macros/post.html"),
                 ),
             ],
+            // New themes reuse zorto templates (identical structure)
+            #[cfg(feature = "theme-ember")]
+            Self::Ember => vec![
+                (
+                    "base.html",
+                    include_str!("../themes/zorto/templates/base.html"),
+                ),
+                (
+                    "page.html",
+                    include_str!("../themes/zorto/templates/page.html"),
+                ),
+                (
+                    "section.html",
+                    include_str!("../themes/zorto/templates/section.html"),
+                ),
+                (
+                    "index.html",
+                    include_str!("../themes/zorto/templates/index.html"),
+                ),
+                (
+                    "404.html",
+                    include_str!("../themes/zorto/templates/404.html"),
+                ),
+                (
+                    "macros/post.html",
+                    include_str!("../themes/zorto/templates/macros/post.html"),
+                ),
+            ],
+            #[cfg(feature = "theme-forest")]
+            Self::Forest => vec![
+                (
+                    "base.html",
+                    include_str!("../themes/zorto/templates/base.html"),
+                ),
+                (
+                    "page.html",
+                    include_str!("../themes/zorto/templates/page.html"),
+                ),
+                (
+                    "section.html",
+                    include_str!("../themes/zorto/templates/section.html"),
+                ),
+                (
+                    "index.html",
+                    include_str!("../themes/zorto/templates/index.html"),
+                ),
+                (
+                    "404.html",
+                    include_str!("../themes/zorto/templates/404.html"),
+                ),
+                (
+                    "macros/post.html",
+                    include_str!("../themes/zorto/templates/macros/post.html"),
+                ),
+            ],
+            #[cfg(feature = "theme-ocean")]
+            Self::Ocean => vec![
+                (
+                    "base.html",
+                    include_str!("../themes/zorto/templates/base.html"),
+                ),
+                (
+                    "page.html",
+                    include_str!("../themes/zorto/templates/page.html"),
+                ),
+                (
+                    "section.html",
+                    include_str!("../themes/zorto/templates/section.html"),
+                ),
+                (
+                    "index.html",
+                    include_str!("../themes/zorto/templates/index.html"),
+                ),
+                (
+                    "404.html",
+                    include_str!("../themes/zorto/templates/404.html"),
+                ),
+                (
+                    "macros/post.html",
+                    include_str!("../themes/zorto/templates/macros/post.html"),
+                ),
+            ],
+            #[cfg(feature = "theme-rose")]
+            Self::Rose => vec![
+                (
+                    "base.html",
+                    include_str!("../themes/zorto/templates/base.html"),
+                ),
+                (
+                    "page.html",
+                    include_str!("../themes/zorto/templates/page.html"),
+                ),
+                (
+                    "section.html",
+                    include_str!("../themes/zorto/templates/section.html"),
+                ),
+                (
+                    "index.html",
+                    include_str!("../themes/zorto/templates/index.html"),
+                ),
+                (
+                    "404.html",
+                    include_str!("../themes/zorto/templates/404.html"),
+                ),
+                (
+                    "macros/post.html",
+                    include_str!("../themes/zorto/templates/macros/post.html"),
+                ),
+            ],
             _ => vec![],
         }
     }
 
+    /// Shared SCSS partials included in every theme.
+    const SHARED_STRUCTURE: &'static str = include_str!("../themes/shared/_structure.scss");
+    const SHARED_COMPONENTS: &'static str = include_str!("../themes/shared/_components.scss");
+
     /// Get all SCSS files for this theme as `(filename, content)` pairs.
+    ///
+    /// Always includes shared partials (`_structure.scss`, `_components.scss`)
+    /// alongside the theme's own `style.scss`.
     #[allow(unreachable_patterns)]
     pub fn scss(&self) -> Vec<(&'static str, &'static str)> {
+        let mut files = vec![
+            ("_structure.scss", Self::SHARED_STRUCTURE),
+            ("_components.scss", Self::SHARED_COMPONENTS),
+        ];
         match self {
             #[cfg(feature = "theme-dkdc")]
-            Self::Dkdc => vec![("style.scss", include_str!("../themes/dkdc/sass/style.scss"))],
+            Self::Dkdc => {
+                files.push(("style.scss", include_str!("../themes/dkdc/sass/style.scss")))
+            }
             #[cfg(feature = "theme-light")]
-            Self::Light => vec![(
+            Self::Light => files.push((
                 "style.scss",
                 include_str!("../themes/light/sass/style.scss"),
-            )],
+            )),
             #[cfg(feature = "theme-dark")]
-            Self::Dark => vec![("style.scss", include_str!("../themes/dark/sass/style.scss"))],
+            Self::Dark => {
+                files.push(("style.scss", include_str!("../themes/dark/sass/style.scss")))
+            }
             #[cfg(feature = "theme-zorto")]
-            Self::Zorto => vec![(
+            Self::Zorto => files.push((
                 "style.scss",
                 include_str!("../themes/zorto/sass/style.scss"),
-            )],
-            _ => vec![],
+            )),
+            #[cfg(feature = "theme-ember")]
+            Self::Ember => files.push((
+                "style.scss",
+                include_str!("../themes/ember/sass/style.scss"),
+            )),
+            #[cfg(feature = "theme-forest")]
+            Self::Forest => files.push((
+                "style.scss",
+                include_str!("../themes/forest/sass/style.scss"),
+            )),
+            #[cfg(feature = "theme-ocean")]
+            Self::Ocean => files.push((
+                "style.scss",
+                include_str!("../themes/ocean/sass/style.scss"),
+            )),
+            #[cfg(feature = "theme-rose")]
+            Self::Rose => {
+                files.push(("style.scss", include_str!("../themes/rose/sass/style.scss")))
+            }
+            _ => {}
+        }
+        files
+    }
+
+    /// Return the theme's name as a string.
+    pub fn name(&self) -> &'static str {
+        match self {
+            #[cfg(feature = "theme-dkdc")]
+            Self::Dkdc => "dkdc",
+            #[cfg(feature = "theme-light")]
+            Self::Light => "light",
+            #[cfg(feature = "theme-dark")]
+            Self::Dark => "dark",
+            #[cfg(feature = "theme-zorto")]
+            Self::Zorto => "zorto",
+            #[cfg(feature = "theme-ember")]
+            Self::Ember => "ember",
+            #[cfg(feature = "theme-forest")]
+            Self::Forest => "forest",
+            #[cfg(feature = "theme-ocean")]
+            Self::Ocean => "ocean",
+            #[cfg(feature = "theme-rose")]
+            Self::Rose => "rose",
+            #[allow(unreachable_patterns)]
+            _ => "unknown",
         }
     }
 }
