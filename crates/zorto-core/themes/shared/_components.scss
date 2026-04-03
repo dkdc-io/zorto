@@ -514,6 +514,9 @@
 
   &__btn {
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     // Reset button defaults to exactly match <a> navbar__right-btn
     background: none;
     color: var(--color-muted);

@@ -30,7 +30,7 @@ pub struct Config {
     /// Markdown rendering options.
     #[serde(default)]
     pub markdown: MarkdownConfig,
-    /// Built-in theme name (e.g. `"dkdc"`, `"light"`, `"dark"`).
+    /// Built-in theme name (e.g. `"zorto"`, `"dkdc"`, `"default"`).
     ///
     /// When set, the theme provides default templates and SCSS. Local
     /// `templates/` and `sass/` files override theme defaults.

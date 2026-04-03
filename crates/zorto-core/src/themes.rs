@@ -1,41 +1,46 @@
 //! Built-in themes for Zorto.
 //!
 //! Themes provide default templates and SCSS that ship with the Zorto binary.
-//! A site can select a theme via `theme = "dkdc"` in `config.toml`. Local
+//! A site can select a theme via `theme = "zorto"` in `config.toml`. Local
 //! `templates/` and `sass/` files always override theme defaults.
 //!
-//! Each theme is gated behind a Cargo feature (`theme-dkdc`, `theme-light`,
-//! `theme-dark`). All are enabled by default. In Python builds all themes are
-//! always included.
+//! Each theme is gated behind a Cargo feature (`theme-zorto`, `theme-dkdc`,
+//! etc.). All are enabled by default. In Python builds all themes are always
+//! included.
+//!
+//! Every theme supports both light and dark mode via CSS variables. The
+//! `:root` selector defines dark-mode defaults, and `[data-theme="light"]`
+//! overrides for light mode. The light/dark toggle in the navbar works
+//! identically across all themes.
 
 /// A built-in theme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Theme {
-    /// Violet/cyan dark-default theme with animations. The dkdc brand theme.
-    #[cfg(feature = "theme-dkdc")]
-    Dkdc,
-    /// Clean light-default theme. No animations.
-    #[cfg(feature = "theme-light")]
-    Light,
-    /// Clean dark-default theme. No animations.
-    #[cfg(feature = "theme-dark")]
-    Dark,
     /// Blue/green dark-default theme with animations. The zorto brand theme.
     #[cfg(feature = "theme-zorto")]
     Zorto,
+    /// Violet/cyan dark-default theme with animations. The dkdc brand theme.
+    #[cfg(feature = "theme-dkdc")]
+    Dkdc,
+    /// Clean blue theme. No animations.
+    #[cfg(feature = "theme-default")]
+    Default,
     /// Orange/amber dark-default theme. Warm and cozy.
     #[cfg(feature = "theme-ember")]
     Ember,
     /// Green/lime dark-default theme. Natural and earthy.
     #[cfg(feature = "theme-forest")]
     Forest,
-    /// Teal/blue light-default theme. Calm and professional.
+    /// Teal/blue dark-default theme. Calm and professional.
     #[cfg(feature = "theme-ocean")]
     Ocean,
-    /// Pink/purple light-default theme. Soft and modern.
+    /// Pink/purple dark-default theme. Soft and modern.
     #[cfg(feature = "theme-rose")]
     Rose,
+    /// Neutral monochrome dark-default theme. Minimal and clean.
+    #[cfg(feature = "theme-slate")]
+    Slate,
 }
 
 impl Theme {
@@ -45,14 +50,12 @@ impl Theme {
     /// not enabled.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
-            #[cfg(feature = "theme-dkdc")]
-            "dkdc" => Some(Self::Dkdc),
-            #[cfg(feature = "theme-light")]
-            "light" => Some(Self::Light),
-            #[cfg(feature = "theme-dark")]
-            "dark" => Some(Self::Dark),
             #[cfg(feature = "theme-zorto")]
             "zorto" => Some(Self::Zorto),
+            #[cfg(feature = "theme-dkdc")]
+            "dkdc" => Some(Self::Dkdc),
+            #[cfg(feature = "theme-default")]
+            "default" => Some(Self::Default),
             #[cfg(feature = "theme-ember")]
             "ember" => Some(Self::Ember),
             #[cfg(feature = "theme-forest")]
@@ -61,6 +64,8 @@ impl Theme {
             "ocean" => Some(Self::Ocean),
             #[cfg(feature = "theme-rose")]
             "rose" => Some(Self::Rose),
+            #[cfg(feature = "theme-slate")]
+            "slate" => Some(Self::Slate),
             _ => None,
         }
     }
@@ -69,14 +74,12 @@ impl Theme {
     #[allow(unused_mut, clippy::vec_init_then_push)]
     pub fn available() -> Vec<&'static str> {
         let mut names = Vec::new();
-        #[cfg(feature = "theme-dkdc")]
-        names.push("dkdc");
-        #[cfg(feature = "theme-light")]
-        names.push("light");
-        #[cfg(feature = "theme-dark")]
-        names.push("dark");
         #[cfg(feature = "theme-zorto")]
         names.push("zorto");
+        #[cfg(feature = "theme-dkdc")]
+        names.push("dkdc");
+        #[cfg(feature = "theme-default")]
+        names.push("default");
         #[cfg(feature = "theme-ember")]
         names.push("ember");
         #[cfg(feature = "theme-forest")]
@@ -85,12 +88,43 @@ impl Theme {
         names.push("ocean");
         #[cfg(feature = "theme-rose")]
         names.push("rose");
+        #[cfg(feature = "theme-slate")]
+        names.push("slate");
         names
     }
+
+    /// Zorto templates shared by all themes.
+    const BASE_HTML: (&'static str, &'static str) = (
+        "base.html",
+        include_str!("../themes/zorto/templates/base.html"),
+    );
+    const PAGE_HTML: (&'static str, &'static str) = (
+        "page.html",
+        include_str!("../themes/zorto/templates/page.html"),
+    );
+    const SECTION_HTML: (&'static str, &'static str) = (
+        "section.html",
+        include_str!("../themes/zorto/templates/section.html"),
+    );
+    const INDEX_HTML: (&'static str, &'static str) = (
+        "index.html",
+        include_str!("../themes/zorto/templates/index.html"),
+    );
+    const NOT_FOUND_HTML: (&'static str, &'static str) = (
+        "404.html",
+        include_str!("../themes/zorto/templates/404.html"),
+    );
+    const POST_MACRO_HTML: (&'static str, &'static str) = (
+        "macros/post.html",
+        include_str!("../themes/zorto/templates/macros/post.html"),
+    );
 
     /// Get all template files for this theme as `(name, content)` pairs.
     ///
     /// Template names use forward slashes (e.g. `"macros/post.html"`).
+    /// All themes share the same base templates from zorto. The dkdc theme
+    /// has its own base.html (identical structure, different default theme name
+    /// in Tera config references).
     #[allow(unreachable_patterns)]
     pub fn templates(&self) -> Vec<(&'static str, &'static str)> {
         match self {
@@ -100,218 +134,20 @@ impl Theme {
                     "base.html",
                     include_str!("../themes/dkdc/templates/base.html"),
                 ),
-                (
-                    "page.html",
-                    include_str!("../themes/dkdc/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/dkdc/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/dkdc/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/dkdc/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/dkdc/templates/macros/post.html"),
-                ),
+                Self::PAGE_HTML,
+                Self::SECTION_HTML,
+                Self::INDEX_HTML,
+                Self::NOT_FOUND_HTML,
+                Self::POST_MACRO_HTML,
             ],
-            #[cfg(feature = "theme-light")]
-            Self::Light => vec![
-                (
-                    "base.html",
-                    include_str!("../themes/light/templates/base.html"),
-                ),
-                (
-                    "page.html",
-                    include_str!("../themes/light/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/light/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/light/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/light/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/light/templates/macros/post.html"),
-                ),
+            _ => vec![
+                Self::BASE_HTML,
+                Self::PAGE_HTML,
+                Self::SECTION_HTML,
+                Self::INDEX_HTML,
+                Self::NOT_FOUND_HTML,
+                Self::POST_MACRO_HTML,
             ],
-            #[cfg(feature = "theme-dark")]
-            Self::Dark => vec![
-                (
-                    "base.html",
-                    include_str!("../themes/dark/templates/base.html"),
-                ),
-                (
-                    "page.html",
-                    include_str!("../themes/dark/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/dark/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/dark/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/dark/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/dark/templates/macros/post.html"),
-                ),
-            ],
-            #[cfg(feature = "theme-zorto")]
-            Self::Zorto => vec![
-                (
-                    "base.html",
-                    include_str!("../themes/zorto/templates/base.html"),
-                ),
-                (
-                    "page.html",
-                    include_str!("../themes/zorto/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/zorto/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/zorto/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/zorto/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/zorto/templates/macros/post.html"),
-                ),
-            ],
-            // New themes reuse zorto templates (identical structure)
-            #[cfg(feature = "theme-ember")]
-            Self::Ember => vec![
-                (
-                    "base.html",
-                    include_str!("../themes/zorto/templates/base.html"),
-                ),
-                (
-                    "page.html",
-                    include_str!("../themes/zorto/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/zorto/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/zorto/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/zorto/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/zorto/templates/macros/post.html"),
-                ),
-            ],
-            #[cfg(feature = "theme-forest")]
-            Self::Forest => vec![
-                (
-                    "base.html",
-                    include_str!("../themes/zorto/templates/base.html"),
-                ),
-                (
-                    "page.html",
-                    include_str!("../themes/zorto/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/zorto/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/zorto/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/zorto/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/zorto/templates/macros/post.html"),
-                ),
-            ],
-            #[cfg(feature = "theme-ocean")]
-            Self::Ocean => vec![
-                (
-                    "base.html",
-                    include_str!("../themes/zorto/templates/base.html"),
-                ),
-                (
-                    "page.html",
-                    include_str!("../themes/zorto/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/zorto/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/zorto/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/zorto/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/zorto/templates/macros/post.html"),
-                ),
-            ],
-            #[cfg(feature = "theme-rose")]
-            Self::Rose => vec![
-                (
-                    "base.html",
-                    include_str!("../themes/zorto/templates/base.html"),
-                ),
-                (
-                    "page.html",
-                    include_str!("../themes/zorto/templates/page.html"),
-                ),
-                (
-                    "section.html",
-                    include_str!("../themes/zorto/templates/section.html"),
-                ),
-                (
-                    "index.html",
-                    include_str!("../themes/zorto/templates/index.html"),
-                ),
-                (
-                    "404.html",
-                    include_str!("../themes/zorto/templates/404.html"),
-                ),
-                (
-                    "macros/post.html",
-                    include_str!("../themes/zorto/templates/macros/post.html"),
-                ),
-            ],
-            _ => vec![],
         }
     }
 
@@ -330,23 +166,19 @@ impl Theme {
             ("_components.scss", Self::SHARED_COMPONENTS),
         ];
         match self {
-            #[cfg(feature = "theme-dkdc")]
-            Self::Dkdc => {
-                files.push(("style.scss", include_str!("../themes/dkdc/sass/style.scss")))
-            }
-            #[cfg(feature = "theme-light")]
-            Self::Light => files.push((
-                "style.scss",
-                include_str!("../themes/light/sass/style.scss"),
-            )),
-            #[cfg(feature = "theme-dark")]
-            Self::Dark => {
-                files.push(("style.scss", include_str!("../themes/dark/sass/style.scss")))
-            }
             #[cfg(feature = "theme-zorto")]
             Self::Zorto => files.push((
                 "style.scss",
                 include_str!("../themes/zorto/sass/style.scss"),
+            )),
+            #[cfg(feature = "theme-dkdc")]
+            Self::Dkdc => {
+                files.push(("style.scss", include_str!("../themes/dkdc/sass/style.scss")))
+            }
+            #[cfg(feature = "theme-default")]
+            Self::Default => files.push((
+                "style.scss",
+                include_str!("../themes/default/sass/style.scss"),
             )),
             #[cfg(feature = "theme-ember")]
             Self::Ember => files.push((
@@ -367,6 +199,11 @@ impl Theme {
             Self::Rose => {
                 files.push(("style.scss", include_str!("../themes/rose/sass/style.scss")))
             }
+            #[cfg(feature = "theme-slate")]
+            Self::Slate => files.push((
+                "style.scss",
+                include_str!("../themes/slate/sass/style.scss"),
+            )),
             _ => {}
         }
         files
@@ -375,14 +212,12 @@ impl Theme {
     /// Return the theme's name as a string.
     pub fn name(&self) -> &'static str {
         match self {
-            #[cfg(feature = "theme-dkdc")]
-            Self::Dkdc => "dkdc",
-            #[cfg(feature = "theme-light")]
-            Self::Light => "light",
-            #[cfg(feature = "theme-dark")]
-            Self::Dark => "dark",
             #[cfg(feature = "theme-zorto")]
             Self::Zorto => "zorto",
+            #[cfg(feature = "theme-dkdc")]
+            Self::Dkdc => "dkdc",
+            #[cfg(feature = "theme-default")]
+            Self::Default => "default",
             #[cfg(feature = "theme-ember")]
             Self::Ember => "ember",
             #[cfg(feature = "theme-forest")]
@@ -391,6 +226,8 @@ impl Theme {
             Self::Ocean => "ocean",
             #[cfg(feature = "theme-rose")]
             Self::Rose => "rose",
+            #[cfg(feature = "theme-slate")]
+            Self::Slate => "slate",
             #[allow(unreachable_patterns)]
             _ => "unknown",
         }

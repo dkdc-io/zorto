@@ -8,22 +8,22 @@
   --accent-alpha-20: rgba(13, 148, 136, .2);
   --accent-secondary: rgb(59, 130, 246);
   --accent-secondary-alpha-20: rgba(59, 130, 246, .2);
-  --background: #f8fafb;
-  --background-raised: #ffffff;
-  --color: #1a2e38;
-  --color-muted: rgba(26, 46, 56, .5);
-  --border-color: rgba(13, 148, 136, .12);
-  --code-bg: #eef4f6;
-  --max-width: 1200px;
-}
-
-[data-theme="dark"] {
   --background: #0a1628;
   --background-raised: #0f1e34;
   --color: #cde0f0;
   --color-muted: rgba(205, 224, 240, .5);
   --border-color: rgba(13, 148, 136, .15);
   --code-bg: rgba(0, 0, 0, 0.3);
+  --max-width: 1200px;
+}
+
+[data-theme="light"] {
+  --background: #f8fafb;
+  --background-raised: #ffffff;
+  --color: #1a2e38;
+  --color-muted: rgba(26, 46, 56, .5);
+  --border-color: rgba(13, 148, 136, .12);
+  --code-bg: #eef4f6;
 }
 
 $phone-max-width: 683px;
