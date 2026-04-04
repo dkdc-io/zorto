@@ -111,8 +111,38 @@ pub(crate) fn rebuild_site(state: &AppState) -> Result<(), String> {
 }
 
 pub(crate) fn escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
+    zorto_core::content::escape_html(s)
+}
+
+/// Validate that a user-supplied path, when joined to a base directory, stays
+/// within that directory. Returns the canonical path on success, or an error
+/// message suitable for display.
+pub(crate) fn validate_path(base: &Path, user_path: &str) -> Result<PathBuf, String> {
+    let joined = base.join(user_path);
+
+    // Canonicalize base (must exist)
+    let canonical_base = base
+        .canonicalize()
+        .map_err(|e| format!("Base directory does not exist: {e}"))?;
+
+    // For existence-checking operations, canonicalize the joined path.
+    // For creation, canonicalize the parent and verify.
+    let canonical = if joined.exists() {
+        joined
+            .canonicalize()
+            .map_err(|e| format!("Cannot resolve path: {e}"))?
+    } else {
+        // File doesn't exist yet (creation). Canonicalize the parent dir.
+        let parent = joined.parent().ok_or("Invalid path")?;
+        let canonical_parent = parent
+            .canonicalize()
+            .map_err(|e| format!("Parent directory does not exist: {e}"))?;
+        canonical_parent.join(joined.file_name().ok_or("Invalid filename")?)
+    };
+
+    if !canonical.starts_with(&canonical_base) {
+        return Err("Path traversal detected".to_string());
+    }
+
+    Ok(canonical)
 }

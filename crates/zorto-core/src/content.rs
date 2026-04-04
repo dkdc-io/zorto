@@ -587,23 +587,26 @@ pub fn extract_title_description(content: &str) -> (Option<String>, Option<Strin
 fn strip_inline_markdown(s: &str) -> String {
     // [text](url) → text
     let mut result = String::with_capacity(s.len());
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'[' {
+    let mut chars = s.char_indices().peekable();
+    while let Some((i, ch)) = chars.next() {
+        if ch == '[' {
             // Look for ](
-            if let Some(close) = s[i + 1..].find("](") {
-                let text = &s[i + 1..i + 1 + close];
-                let after_paren = i + 1 + close + 2;
+            if let Some(close) = s[i + ch.len_utf8()..].find("](") {
+                let text_start = i + ch.len_utf8();
+                let text = &s[text_start..text_start + close];
+                let after_paren = text_start + close + 2;
                 if let Some(end_paren) = s[after_paren..].find(')') {
                     result.push_str(text);
-                    i = after_paren + end_paren + 1;
+                    // Advance past the closing ')'
+                    let skip_to = after_paren + end_paren + 1;
+                    while chars.peek().is_some_and(|(idx, _)| *idx < skip_to) {
+                        chars.next();
+                    }
                     continue;
                 }
             }
         }
-        result.push(bytes[i] as char);
-        i += 1;
+        result.push(ch);
     }
     // **bold** / __bold__ → bold, *italic* / _italic_ → italic
     let result = result
@@ -685,16 +688,22 @@ pub fn assign_pages_to_sections(
     }
 }
 
-/// Escape special characters for XML/HTML output.
+/// Escape special characters for HTML/XML output.
 ///
 /// Escapes `&`, `<`, `>`, `"`, and `'`. Safe for use in element content,
 /// attribute values, and XML (Atom, sitemap) output.
-pub(crate) fn escape_xml(s: &str) -> String {
+pub fn escape_html(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
-        .replace('\'', "&apos;")
+        .replace('\'', "&#x27;")
+}
+
+/// Alias for [`escape_html`] — used in XML contexts (Atom, sitemap) where
+/// the escaping requirements are identical.
+pub(crate) fn escape_xml(s: &str) -> String {
+    escape_html(s)
 }
 
 /// Convert a `toml::Value` to `serde_json::Value`
