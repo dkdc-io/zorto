@@ -8,6 +8,18 @@ cargo publish -p zorto-core
 echo "Waiting for crates.io to index zorto-core..."
 sleep 30
 
+echo "Publishing zorto-webapp to crates.io..."
+cargo publish -p zorto-webapp
+
+echo "Waiting for crates.io to index zorto-webapp..."
+sleep 30
+
+echo "Publishing zorto-app to crates.io..."
+cargo publish -p zorto-app
+
+echo "Waiting for crates.io to index zorto-app..."
+sleep 30
+
 echo "Publishing zorto to crates.io..."
 cargo publish -p zorto
 
