@@ -141,6 +141,19 @@ mod tests {
     }
 
     #[test]
+    fn test_corrupted_json_returns_none() {
+        let tmp = TempDir::new().unwrap();
+        let page_key = "test.md";
+        // Write a valid cache first to get the file path, then corrupt it
+        let cache = PageCache::default();
+        save_page_cache(tmp.path(), page_key, &cache).unwrap();
+        let cache_file = page_cache_file(tmp.path(), page_key);
+        std::fs::write(&cache_file, "not valid json {{{").unwrap();
+        // Should gracefully return None instead of panicking
+        assert!(load_page_cache(tmp.path(), page_key).is_none());
+    }
+
+    #[test]
     fn test_cache_hit_and_miss() {
         let tmp = TempDir::new().unwrap();
         let page_key = "test.md";

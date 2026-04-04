@@ -219,7 +219,15 @@ impl Site {
             raw = shortcodes::process_shortcodes(&raw, &shortcode_dir, root, sandbox)?;
 
             let summary_raw = markdown::extract_summary(&raw);
-            page.content = render_markdown_content(&raw, key, config, root, &content_dir, no_exec)?;
+            page.content = render_markdown_content(
+                &raw,
+                key,
+                config,
+                root,
+                &content_dir,
+                no_exec,
+                Some(&page.extra),
+            )?;
             page.summary = summary_raw.map(|md| {
                 let mut dummy = Vec::new();
                 markdown::render_markdown(&md, &config.markdown, &mut dummy, &config.base_url)
@@ -232,8 +240,15 @@ impl Site {
             if !raw.trim().is_empty() {
                 let processed =
                     shortcodes::process_shortcodes(&raw, &shortcode_dir, root, sandbox)?;
-                section.content =
-                    render_markdown_content(&processed, key, config, root, &content_dir, no_exec)?;
+                section.content = render_markdown_content(
+                    &processed,
+                    key,
+                    config,
+                    root,
+                    &content_dir,
+                    no_exec,
+                    Some(&section.extra),
+                )?;
                 section.raw_content = processed;
             }
         }
@@ -720,6 +735,7 @@ fn render_markdown_content(
     root: &Path,
     content_dir: &Path,
     no_exec: bool,
+    page_extra: Option<&serde_json::Value>,
 ) -> anyhow::Result<String> {
     use crate::cache;
 
@@ -732,7 +748,13 @@ fn render_markdown_content(
     );
 
     if !exec_blocks.is_empty() && !no_exec {
-        let cache_enabled = config.cache.enable;
+        // Per-page cache opt-out: [extra] cache = false in frontmatter
+        let page_cache_opted_out = page_extra
+            .and_then(|extra| extra.get("cache"))
+            .and_then(|v| v.as_bool())
+            .map(|v| !v)
+            .unwrap_or(false);
+        let cache_enabled = config.cache.enable && !page_cache_opted_out;
         let page_cache = if cache_enabled {
             cache::load_page_cache(root, key)
         } else {
@@ -749,7 +771,7 @@ fn render_markdown_content(
         let mut any_executed = false;
 
         for (idx, block) in exec_blocks.iter_mut().enumerate() {
-            let source_hash = cache::hash_source(&block.source);
+            let source_hash = cache::hash_source(&format!("{}:{}", block.language, block.source));
             let idx_key = idx.to_string();
 
             // Check cache for a hit
@@ -1614,5 +1636,80 @@ url_prefix = "docs"
         site.build().unwrap();
 
         assert!(output.join("index.html").exists());
+    }
+
+    #[test]
+    fn test_cache_opt_out_per_page() {
+        use crate::cache;
+
+        let tmp = TempDir::new().unwrap();
+        let root = make_test_site(&tmp);
+
+        // Enable caching globally
+        std::fs::write(
+            root.join("config.toml"),
+            r#"base_url = "https://example.com"
+title = "Test Site"
+
+[cache]
+enable = true
+"#,
+        )
+        .unwrap();
+
+        // Page WITH cache opt-out
+        std::fs::write(
+            root.join("content/posts/no-cache.md"),
+            "+++\ntitle = \"No Cache\"\ndate = \"2025-01-02\"\n\n[extra]\ncache = false\n+++\n```{bash}\necho \"not cached\"\n```\n",
+        )
+        .unwrap();
+
+        // Page WITHOUT cache opt-out (should be cached)
+        std::fs::write(
+            root.join("content/posts/yes-cache.md"),
+            "+++\ntitle = \"Yes Cache\"\ndate = \"2025-01-03\"\n+++\n```{bash}\necho \"cached\"\n```\n",
+        )
+        .unwrap();
+
+        let output = tmp.path().join("public");
+        let mut site = Site::load(&root, &output, false).unwrap();
+        site.build().unwrap();
+
+        // The opted-out page should NOT have a cache file
+        assert!(
+            cache::load_page_cache(&root, "posts/no-cache.md").is_none(),
+            "cache should not exist for page with cache = false"
+        );
+
+        // The normal page SHOULD have a cache file
+        assert!(
+            cache::load_page_cache(&root, "posts/yes-cache.md").is_some(),
+            "cache should exist for page without cache opt-out"
+        );
+    }
+
+    #[test]
+    fn test_cache_opt_out_extra_field_detection() {
+        // Unit test for the opt-out detection pattern used in render_markdown_content
+        let extra_with_false = serde_json::json!({"cache": false});
+        let extra_with_true = serde_json::json!({"cache": true});
+        let extra_without = serde_json::json!({"color": "blue"});
+        let extra_empty = serde_json::json!({});
+
+        let check = |extra: &serde_json::Value| -> bool {
+            extra
+                .get("cache")
+                .and_then(|v| v.as_bool())
+                .map(|v| !v)
+                .unwrap_or(false)
+        };
+
+        assert!(check(&extra_with_false), "cache=false should opt out");
+        assert!(!check(&extra_with_true), "cache=true should not opt out");
+        assert!(
+            !check(&extra_without),
+            "missing cache key should not opt out"
+        );
+        assert!(!check(&extra_empty), "empty extra should not opt out");
     }
 }
