@@ -243,11 +243,20 @@ impl Site {
 
     /// Render all templates and write output
     fn render_templates(&self, tera: &tera::Tera) -> anyhow::Result<()> {
-        // Clean and create output dir
+        // Clean and create output dir.
+        // Retry once on failure — during preview mode the dev server may hold
+        // file handles that temporarily prevent deletion (macOS "Directory not
+        // empty" / ENOTEMPTY race). If the retry also fails, proceed without
+        // cleaning so the rebuild still succeeds with overwritten files.
         if self.output_dir.exists() {
-            std::fs::remove_dir_all(&self.output_dir).map_err(|e| {
-                anyhow::anyhow!("failed to clean {}: {e}", self.output_dir.display())
-            })?;
+            if let Err(_first) = std::fs::remove_dir_all(&self.output_dir) {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                if let Err(_second) = std::fs::remove_dir_all(&self.output_dir) {
+                    // Could not clean output dir — proceed anyway (files will
+                    // be overwritten in place). This avoids hard failures during
+                    // live-reload rebuilds.
+                }
+            }
         }
         std::fs::create_dir_all(&self.output_dir)
             .map_err(|e| anyhow::anyhow!("failed to create {}: {e}", self.output_dir.display()))?;
@@ -464,8 +473,28 @@ impl Site {
         let templates_dir = self.root.join("templates");
         let _tera = templates::setup_tera(&templates_dir, &self.config, &self.sections)?;
 
+        let mut warnings = Vec::new();
+
         // Lint templates
-        let warnings = crate::lint::lint_templates(&templates_dir);
+        warnings.extend(crate::lint::lint_templates(&templates_dir));
+
+        // Lint internal links
+        warnings.extend(crate::lint::lint_internal_links(
+            &self.pages,
+            &self.sections,
+        ));
+
+        // Lint frontmatter
+        warnings.extend(crate::lint::lint_frontmatter(&self.pages, &self.sections));
+
+        // Lint missing assets
+        let static_dir = self.root.join("static");
+        warnings.extend(crate::lint::lint_missing_assets(
+            &self.pages,
+            &self.sections,
+            &static_dir,
+        ));
+
         for w in &warnings {
             eprintln!("{w}");
         }
