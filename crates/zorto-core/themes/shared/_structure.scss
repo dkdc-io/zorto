@@ -427,6 +427,9 @@ button.navbar__icon-link {
   padding: 0;
   cursor: pointer;
   font: inherit;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 // ========================================
