@@ -5,7 +5,7 @@ use axum::response::Html;
 use std::sync::Arc;
 
 use crate::html;
-use crate::{AppState, escape};
+use crate::{AppState, escape, validate_path};
 
 pub async fn list(State(state): State<Arc<AppState>>) -> Html<String> {
     let site_title = state.site_title();
@@ -103,7 +103,14 @@ pub async fn upload(State(state): State<Arc<AppState>>, mut multipart: Multipart
             let dest_dir = if subdir.is_empty() {
                 static_dir.clone()
             } else {
-                static_dir.join(&subdir)
+                // Validate subdir doesn't escape static directory
+                match validate_path(&static_dir, &subdir) {
+                    Ok(p) => p,
+                    Err(_) => {
+                        error_msg = Some("Invalid subdirectory path".to_string());
+                        continue;
+                    }
+                }
             };
             let _ = std::fs::create_dir_all(&dest_dir);
 

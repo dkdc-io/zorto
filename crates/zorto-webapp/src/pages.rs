@@ -5,7 +5,7 @@ use axum::response::{Html, IntoResponse, Redirect};
 use std::sync::Arc;
 
 use crate::html;
-use crate::{AppState, escape};
+use crate::{AppState, escape, validate_path};
 
 pub async fn list(State(state): State<Arc<AppState>>) -> Html<String> {
     let site_title = state.site_title();
@@ -92,7 +92,18 @@ pub async fn list(State(state): State<Arc<AppState>>) -> Html<String> {
 
 pub async fn edit(State(state): State<Arc<AppState>>, Path(path): Path<String>) -> Html<String> {
     let site_title = state.site_title();
-    let file_path = state.root.join("content").join(&path);
+    let content_dir = state.root.join("content");
+    let file_path = match validate_path(&content_dir, &path) {
+        Ok(p) => p,
+        Err(_) => {
+            return Html(html::page(
+                "Error",
+                &site_title,
+                "pages",
+                "<p>Invalid path.</p>",
+            ));
+        }
+    };
     let content = std::fs::read_to_string(&file_path).unwrap_or_default();
 
     Html(render_editor(&site_title, &path, &content, None))
@@ -103,7 +114,19 @@ pub async fn save(
     Path(path): Path<String>,
     axum::Form(form): axum::Form<SaveForm>,
 ) -> Html<String> {
-    let file_path = state.root.join("content").join(&path);
+    let content_dir = state.root.join("content");
+    let file_path = match validate_path(&content_dir, &path) {
+        Ok(p) => p,
+        Err(_) => {
+            let site_title = state.site_title();
+            return Html(html::page(
+                "Error",
+                &site_title,
+                "pages",
+                "<p>Invalid path.</p>",
+            ));
+        }
+    };
 
     // Reconstruct the file from form fields
     let new_content = form.to_file_content();
@@ -127,7 +150,11 @@ pub async fn delete(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
 ) -> axum::response::Response {
-    let file_path = state.root.join("content").join(&path);
+    let content_dir = state.root.join("content");
+    let file_path = match validate_path(&content_dir, &path) {
+        Ok(p) => p,
+        Err(_) => return Redirect::to("/pages").into_response(),
+    };
     if file_path.exists() {
         let _ = std::fs::remove_file(&file_path);
         let _ = rebuild_site(&state);
@@ -237,11 +264,17 @@ pub async fn create(
 ) -> axum::response::Response {
     let slug = slug::slugify(&form.title);
     let section = form.section.clone();
+    let content_dir = state.root.join("content");
+
+    // Validate section path doesn't escape content dir
+    if !section.is_empty() && validate_path(&content_dir, &section).is_err() {
+        return Redirect::to("/pages").into_response();
+    }
 
     let file_dir = if section.is_empty() {
-        state.root.join("content")
+        content_dir.clone()
     } else {
-        state.root.join("content").join(&section)
+        content_dir.join(&section)
     };
     let _ = std::fs::create_dir_all(&file_dir);
 
@@ -251,22 +284,19 @@ pub async fn create(
         format!("{section}/{slug}.md")
     };
 
-    let mut fm = String::from("+++\n");
-    fm.push_str(&format!(
-        "title = \"{}\"\n",
-        form.title.replace('"', r#"\""#)
-    ));
+    let mut table = toml::map::Map::new();
+    table.insert("title".into(), toml::Value::String(form.title.clone()));
     if !form.date.is_empty() {
-        fm.push_str(&format!("date = \"{}\"\n", form.date));
+        table.insert("date".into(), toml::Value::String(form.date.clone()));
     }
     if !form.description.is_empty() {
-        fm.push_str(&format!(
-            "description = \"{}\"\n",
-            form.description.replace('"', r#"\""#)
-        ));
+        table.insert(
+            "description".into(),
+            toml::Value::String(form.description.clone()),
+        );
     }
     if form.draft == "true" {
-        fm.push_str("draft = true\n");
+        table.insert("draft".into(), toml::Value::Boolean(true));
     }
     let tags: Vec<&str> = form
         .tags
@@ -275,10 +305,14 @@ pub async fn create(
         .filter(|t| !t.is_empty())
         .collect();
     if !tags.is_empty() {
-        let tag_vals: Vec<String> = tags.iter().map(|t| format!("\"{}\"", t)).collect();
-        fm.push_str(&format!("tags = [{}]\n", tag_vals.join(", ")));
+        let tag_vals: Vec<toml::Value> = tags
+            .iter()
+            .map(|t| toml::Value::String(t.to_string()))
+            .collect();
+        table.insert("tags".into(), toml::Value::Array(tag_vals));
     }
-    fm.push_str("+++\n");
+    let fm_toml = toml::to_string(&toml::Value::Table(table)).unwrap_or_default();
+    let mut fm = format!("+++\n{fm_toml}+++\n");
 
     if !form.body.is_empty() {
         fm.push_str(&form.body);
@@ -312,24 +346,21 @@ pub struct SaveForm {
 
 impl SaveForm {
     fn to_file_content(&self) -> String {
-        let mut fm = String::from("+++\n");
+        let mut table = toml::map::Map::new();
         if !self.title.is_empty() {
-            fm.push_str(&format!(
-                "title = \"{}\"\n",
-                self.title.replace('"', r#"\""#)
-            ));
+            table.insert("title".into(), toml::Value::String(self.title.clone()));
         }
         if !self.date.is_empty() {
-            fm.push_str(&format!("date = \"{}\"\n", self.date));
+            table.insert("date".into(), toml::Value::String(self.date.clone()));
         }
         if !self.description.is_empty() {
-            fm.push_str(&format!(
-                "description = \"{}\"\n",
-                self.description.replace('"', r#"\""#)
-            ));
+            table.insert(
+                "description".into(),
+                toml::Value::String(self.description.clone()),
+            );
         }
         if self.draft == "true" {
-            fm.push_str("draft = true\n");
+            table.insert("draft".into(), toml::Value::Boolean(true));
         }
         let tags: Vec<&str> = self
             .tags
@@ -338,9 +369,14 @@ impl SaveForm {
             .filter(|t| !t.is_empty())
             .collect();
         if !tags.is_empty() {
-            let tag_vals: Vec<String> = tags.iter().map(|t| format!("\"{}\"", t)).collect();
-            fm.push_str(&format!("tags = [{}]\n", tag_vals.join(", ")));
+            let tag_vals: Vec<toml::Value> = tags
+                .iter()
+                .map(|t| toml::Value::String(t.to_string()))
+                .collect();
+            table.insert("tags".into(), toml::Value::Array(tag_vals));
         }
+        let fm_toml = toml::to_string(&toml::Value::Table(table)).unwrap_or_default();
+        let mut fm = format!("+++\n{fm_toml}");
         // Preserve any extra frontmatter lines we didn't parse into fields
         if !self.extra_frontmatter.is_empty() {
             fm.push_str(&self.extra_frontmatter);

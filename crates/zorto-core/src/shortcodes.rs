@@ -194,6 +194,9 @@ fn builtin_include(
         .ok_or_else(|| anyhow::anyhow!("include shortcode requires a `path` argument"))?;
 
     let content = if path.starts_with("https://") || path.starts_with("http://") {
+        if !path.starts_with("https://") {
+            anyhow::bail!("include shortcode: only https:// URLs are allowed, got: {path}");
+        }
         fetch_url(path)?
     } else {
         read_local_file(path, site_root, sandbox_root)?
@@ -286,14 +289,40 @@ pub(crate) fn normalize_path(path: &Path) -> PathBuf {
     components.iter().collect()
 }
 
-/// Fetch content from a remote URL.
+/// Maximum response size for remote includes (10 MB).
+const MAX_INCLUDE_RESPONSE_SIZE: u64 = 10 * 1024 * 1024;
+
+/// Fetch content from a remote URL with size limit.
 fn fetch_url(url: &str) -> anyhow::Result<String> {
-    ureq::get(url)
+    let mut response = ureq::get(url)
         .call()
-        .map_err(|e| anyhow::anyhow!("include shortcode: failed to fetch {url}: {e}"))?
+        .map_err(|e| anyhow::anyhow!("include shortcode: failed to fetch {url}: {e}"))?;
+
+    // Check Content-Length header if present
+    if let Some(len) = response.headers().get("content-length") {
+        if let Ok(len_str) = len.to_str() {
+            if let Ok(len) = len_str.parse::<u64>() {
+                if len > MAX_INCLUDE_RESPONSE_SIZE {
+                    anyhow::bail!(
+                        "include shortcode: response from {url} too large ({len} bytes, max {MAX_INCLUDE_RESPONSE_SIZE})"
+                    );
+                }
+            }
+        }
+    }
+
+    let buf = response
         .body_mut()
-        .read_to_string()
-        .map_err(|e| anyhow::anyhow!("include shortcode: failed to read response from {url}: {e}"))
+        .with_config()
+        .limit(MAX_INCLUDE_RESPONSE_SIZE)
+        .read_to_vec()
+        .map_err(|e| {
+            anyhow::anyhow!("include shortcode: failed to read response from {url}: {e}")
+        })?;
+
+    String::from_utf8(buf).map_err(|e| {
+        anyhow::anyhow!("include shortcode: response from {url} is not valid UTF-8: {e}")
+    })
 }
 
 /// Read a local file within the sandbox boundary.
@@ -523,6 +552,11 @@ fn builtin_gist(args_str: &str) -> anyhow::Result<String> {
     let url = args
         .get("url")
         .ok_or_else(|| anyhow::anyhow!("gist shortcode requires a `url` argument"))?;
+
+    // Only allow gist.github.com URLs to prevent script injection from arbitrary domains
+    if !url.starts_with("https://gist.github.com/") {
+        anyhow::bail!("gist shortcode: url must be a https://gist.github.com/ URL");
+    }
 
     let file_param = match args.get("file") {
         Some(f) => format!("?file={}", escape_html(f)),
@@ -1676,14 +1710,7 @@ fn parse_rust_config(source: &str) -> Vec<ConfigStruct> {
     structs
 }
 
-/// Escape HTML special characters for safe attribute/content insertion.
-fn escape_html(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#x27;")
-}
+use crate::content::escape_html;
 
 /// SVG icons for callout types (used by both `note` shortcode and markdown callouts).
 pub(crate) const CALLOUT_ICON_NOTE: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>"#;

@@ -5,7 +5,7 @@ use axum::response::Html;
 use std::sync::Arc;
 
 use crate::html;
-use crate::{AppState, escape};
+use crate::{AppState, escape, validate_path};
 
 pub async fn list(State(state): State<Arc<AppState>>) -> Html<String> {
     let site_title = state.site_title();
@@ -95,7 +95,18 @@ pub async fn list(State(state): State<Arc<AppState>>) -> Html<String> {
 
 pub async fn edit(State(state): State<Arc<AppState>>, Path(path): Path<String>) -> Html<String> {
     let site_title = state.site_title();
-    let file_path = state.root.join("content").join(&path);
+    let content_dir = state.root.join("content");
+    let file_path = match validate_path(&content_dir, &path) {
+        Ok(p) => p,
+        Err(_) => {
+            return Html(html::page(
+                "Error",
+                &site_title,
+                "sections",
+                "<p>Invalid path.</p>",
+            ));
+        }
+    };
     let content = std::fs::read_to_string(&file_path).unwrap_or_default();
 
     Html(render_section_editor(&site_title, &path, &content, None))
@@ -106,7 +117,19 @@ pub async fn save(
     Path(path): Path<String>,
     axum::Form(form): axum::Form<SaveForm>,
 ) -> Html<String> {
-    let file_path = state.root.join("content").join(&path);
+    let content_dir = state.root.join("content");
+    let file_path = match validate_path(&content_dir, &path) {
+        Ok(p) => p,
+        Err(_) => {
+            let site_title = state.site_title();
+            return Html(html::page(
+                "Error",
+                &site_title,
+                "sections",
+                "<p>Invalid path.</p>",
+            ));
+        }
+    };
     let new_content = form.to_file_content();
     let result = std::fs::write(&file_path, &new_content);
     let site_title = state.site_title();
@@ -137,29 +160,28 @@ pub struct SaveForm {
 
 impl SaveForm {
     fn to_file_content(&self) -> String {
-        let mut fm = String::from("+++\n");
+        let mut table = toml::map::Map::new();
         if !self.title.is_empty() {
-            fm.push_str(&format!(
-                "title = \"{}\"\n",
-                self.title.replace('"', r#"\""#)
-            ));
+            table.insert("title".into(), toml::Value::String(self.title.clone()));
         }
         if !self.description.is_empty() {
-            fm.push_str(&format!(
-                "description = \"{}\"\n",
-                self.description.replace('"', r#"\""#)
-            ));
+            table.insert(
+                "description".into(),
+                toml::Value::String(self.description.clone()),
+            );
         }
         if !self.sort_by.is_empty() {
-            fm.push_str(&format!("sort_by = \"{}\"\n", self.sort_by));
+            table.insert("sort_by".into(), toml::Value::String(self.sort_by.clone()));
         }
         if !self.paginate_by.is_empty() {
-            if let Ok(n) = self.paginate_by.parse::<usize>() {
+            if let Ok(n) = self.paginate_by.parse::<i64>() {
                 if n > 0 {
-                    fm.push_str(&format!("paginate_by = {n}\n"));
+                    table.insert("paginate_by".into(), toml::Value::Integer(n));
                 }
             }
         }
+        let fm_toml = toml::to_string(&toml::Value::Table(table)).unwrap_or_default();
+        let mut fm = format!("+++\n{fm_toml}");
         if !self.extra_frontmatter.is_empty() {
             fm.push_str(&self.extra_frontmatter);
             if !self.extra_frontmatter.ends_with('\n') {
