@@ -150,6 +150,7 @@ impl Site {
         }
 
         // Generate search index
+        #[cfg(feature = "search")]
         if self.config.generate_search {
             crate::search::generate_search_index(
                 self.pages.values(),
