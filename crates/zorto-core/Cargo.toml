@@ -1,6 +1,6 @@
 [package]
 name = "zorto-core"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Cody <cody@dkdc.io>"]
@@ -62,6 +62,9 @@ ureq = "3"
 
 # Temp dirs (for theme SCSS merging)
 tempfile = "3"
+
+# Hashing (for code block cache)
+sha2 = "0.10"
 
 # Utilities
 anyhow = "1"
