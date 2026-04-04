@@ -38,7 +38,7 @@ Currently, the executable code blocks are quite limited. I want to add support f
 
 ## Built-in search
 
-I want Zorto to ship with built-in full-text search — no external services, no API keys. The plan is a WASM-based search index generated at build time, so search works entirely client-side with zero dependencies.
+I want Zorto to ship with built-in full-text search — no external services, no API keys. The plan is a WASM-based search index generated at build time, so search works entirely client-side with zero dependencies. Exact technology used TBD.
 
 ## Ease of use
 
