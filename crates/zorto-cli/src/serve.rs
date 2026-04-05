@@ -8,39 +8,49 @@ use axum::routing::get;
 use notify_debouncer_mini::{DebouncedEventKind, new_debouncer};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
 const RELOAD_CHANNEL_CAPACITY: usize = 16;
 const DEBOUNCE_MS: u64 = 300;
 
-const LIVERELOAD_JS: &str = r#"
-<script>
-(function() {
-    var reconnectInterval = 1000;
-    var maxReconnect = 30000;
+/// Initial delay (ms) before attempting to reconnect the livereload WebSocket.
+const LIVERELOAD_RECONNECT_INTERVAL_MS: u64 = 1000;
+/// Maximum backoff delay (ms) for livereload WebSocket reconnections.
+const LIVERELOAD_MAX_RECONNECT_MS: u64 = 30000;
 
-    function connect() {
+static LIVERELOAD_JS: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        r#"
+<script>
+(function() {{
+    var reconnectInterval = {LIVERELOAD_RECONNECT_INTERVAL_MS};
+    var maxReconnect = {LIVERELOAD_MAX_RECONNECT_MS};
+
+    function connect() {{
         var ws = new WebSocket('ws://' + location.host + '/__livereload');
-        ws.onmessage = function(event) {
-            if (event.data === 'reload') {
+        ws.onmessage = function(event) {{
+            if (event.data === 'reload') {{
                 location.reload();
-            }
-        };
-        ws.onclose = function() {
+            }}
+        }};
+        ws.onclose = function() {{
             // Reconnect with backoff instead of reloading the page.
             // Only an explicit 'reload' message from the server triggers a page reload.
-            setTimeout(function() { connect(); }, reconnectInterval);
+            setTimeout(function() {{ connect(); }}, reconnectInterval);
             reconnectInterval = Math.min(reconnectInterval * 1.5, maxReconnect);
-        };
-        ws.onopen = function() {
-            reconnectInterval = 1000;
-        };
-    }
+        }};
+        ws.onopen = function() {{
+            reconnectInterval = {LIVERELOAD_RECONNECT_INTERVAL_MS};
+        }};
+    }}
     connect();
-})();
+}})();
 </script>
-"#;
+"#
+    )
+});
 
 #[derive(Clone)]
 struct AppState {
@@ -292,14 +302,15 @@ async fn serve_404(output_dir: &Path) -> Response {
 }
 
 fn inject_livereload(html: &str) -> String {
+    let js: &str = &LIVERELOAD_JS;
     if let Some(pos) = html.rfind("</body>") {
-        let mut result = String::with_capacity(html.len() + LIVERELOAD_JS.len());
+        let mut result = String::with_capacity(html.len() + js.len());
         result.push_str(&html[..pos]);
-        result.push_str(LIVERELOAD_JS);
+        result.push_str(js);
         result.push_str(&html[pos..]);
         result
     } else {
-        format!("{html}{LIVERELOAD_JS}")
+        format!("{html}{js}")
     }
 }
 

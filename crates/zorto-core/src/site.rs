@@ -11,6 +11,10 @@ use crate::sass;
 use crate::shortcodes;
 use crate::templates::{self, Paginator, TaxonomyTerm};
 
+/// Delay before retrying output directory removal during live-reload rebuilds.
+/// macOS file handles can temporarily prevent deletion (ENOTEMPTY race).
+const BUILD_DEBOUNCE_MS: u64 = 50;
+
 /// The main entry point for building a zorto site.
 ///
 /// A `Site` is loaded from disk with [`Site::load`], optionally configured
@@ -276,7 +280,7 @@ impl Site {
         // cleaning so the rebuild still succeeds with overwritten files.
         if self.output_dir.exists() {
             if let Err(_first) = std::fs::remove_dir_all(&self.output_dir) {
-                std::thread::sleep(std::time::Duration::from_millis(50));
+                std::thread::sleep(std::time::Duration::from_millis(BUILD_DEBOUNCE_MS));
                 if let Err(_second) = std::fs::remove_dir_all(&self.output_dir) {
                     // Could not clean output dir — proceed anyway (files will
                     // be overwritten in place). This avoids hard failures during
@@ -428,7 +432,10 @@ impl Site {
         for tax_config in &self.config.taxonomies {
             let tax_name = &tax_config.name;
 
-            // Collect all terms
+            // Collect all terms.
+            // Clones are necessary: we borrow `self.pages` immutably, and a
+            // single page may belong to multiple terms, so each entry needs
+            // its own owned copy.
             let mut term_map: HashMap<String, Vec<Page>> = HashMap::new();
             for page in self.pages.values() {
                 if let Some(terms) = page.taxonomies.get(tax_name) {

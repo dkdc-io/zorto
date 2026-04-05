@@ -1447,8 +1447,6 @@ fn builtin_pyref(_args_str: &str, _site_root: &Path) -> anyhow::Result<String> {
 // ---------------------------------------------------------------------------
 
 struct ConfigStruct {
-    #[allow(dead_code)]
-    name: String,
     display_name: String,
     anchor: String,
     doc: String,
@@ -1636,7 +1634,6 @@ fn parse_rust_config(source: &str) -> Vec<ConfigStruct> {
             if let Some((display, anchor)) = config_display_name(&name) {
                 let doc = doc_lines.join(" ");
                 current_struct = Some(ConfigStruct {
-                    name,
                     display_name: display.to_string(),
                     anchor: anchor.to_string(),
                     doc,
