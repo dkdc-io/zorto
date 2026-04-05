@@ -1658,4 +1658,49 @@ Content goes here"#;
     fn test_parent_dir_root() {
         assert_eq!(parent_dir("file.md"), "");
     }
+
+    // --- Reading time edge cases ---
+
+    #[test]
+    fn test_reading_time_zero_words() {
+        let fm = Frontmatter::default();
+        let page = build_page(fm, "".into(), "test.md", "https://example.com");
+        assert_eq!(page.word_count, 0);
+        assert_eq!(page.reading_time, 1); // 0/200 = 0, max(1) = 1
+    }
+
+    #[test]
+    fn test_reading_time_one_word() {
+        let fm = Frontmatter::default();
+        let page = build_page(fm, "hello".into(), "test.md", "https://example.com");
+        assert_eq!(page.word_count, 1);
+        assert_eq!(page.reading_time, 1); // 1/200 = 0, max(1) = 1
+    }
+
+    #[test]
+    fn test_reading_time_exactly_200_words() {
+        let body = "word ".repeat(200);
+        let fm = Frontmatter::default();
+        let page = build_page(fm, body, "test.md", "https://example.com");
+        assert_eq!(page.word_count, 200);
+        assert_eq!(page.reading_time, 1); // 200/200 = 1
+    }
+
+    #[test]
+    fn test_reading_time_201_words() {
+        let body = "word ".repeat(201);
+        let fm = Frontmatter::default();
+        let page = build_page(fm, body, "test.md", "https://example.com");
+        assert_eq!(page.word_count, 201);
+        assert_eq!(page.reading_time, 1); // 201/200 = 1 (integer division)
+    }
+
+    #[test]
+    fn test_reading_time_400_words() {
+        let body = "word ".repeat(400);
+        let fm = Frontmatter::default();
+        let page = build_page(fm, body, "test.md", "https://example.com");
+        assert_eq!(page.word_count, 400);
+        assert_eq!(page.reading_time, 2); // 400/200 = 2
+    }
 }

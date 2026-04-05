@@ -188,4 +188,14 @@ mod tests {
         let new_hash = hash_source("echo different");
         assert_ne!(block.hash, new_hash);
     }
+
+    #[test]
+    fn test_hash_source_deterministic_across_calls() {
+        // Verify hash stability across many repeated calls.
+        let source = "fn main() { println!(\"hello\"); }";
+        let reference = hash_source(source);
+        for _ in 0..100 {
+            assert_eq!(hash_source(source), reference);
+        }
+    }
 }
