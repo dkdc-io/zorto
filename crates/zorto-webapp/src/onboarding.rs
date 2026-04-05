@@ -284,6 +284,12 @@ fn write_site(
     };
 
     for (path, content) in files {
+        // Skip custom templates when a theme is selected — the theme provides them.
+        // Custom templates from the "default" init template would override theme
+        // templates and miss specialized ones like tags/single.html.
+        if path.starts_with("templates/") && !theme.is_empty() && theme != "default" {
+            continue;
+        }
         let dest = root.join(path);
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
