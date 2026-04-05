@@ -6,7 +6,7 @@ Zorto's theme system provides a complete visual starting point — templates, st
 
 A theme is a bundle of Tera templates and SCSS stylesheets embedded directly in the Zorto binary. Set `theme = "zorto"` in your config and the build pipeline uses that theme's templates and styles as defaults.
 
-Zorto ships eight built-in themes: `zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, and `slate`.
+Zorto ships 16 built-in themes: `zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, `slate`, `midnight`, `sunset`, `mint`, `plum`, `sand`, `arctic`, `lime`, and `charcoal`.
 
 ## The override model
 

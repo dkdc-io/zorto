@@ -70,7 +70,7 @@ Change the `theme` field in `config.toml`:
 theme = "dark"
 ```
 
-Available themes: `zorto`, `dkdc`, `light`, `dark`. All include light/dark mode toggling.
+Available themes: `zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, `slate`, `midnight`, `sunset`, `mint`, `plum`, `sand`, `arctic`, `lime`, `charcoal`. All include light/dark mode toggling.
 
 ## Related guides
 

@@ -13,8 +13,8 @@ Zorto looks for these templates (themes provide defaults for all of them):
 | `section.html` | Section pages (`content/*/_index.md`) |
 | `page.html` | Individual pages |
 | `404.html` | Not-found page |
-| `taxonomy_list.html` | Taxonomy index (e.g., `/tags/`) |
-| `taxonomy_single.html` | Single taxonomy term (e.g., `/tags/rust/`) |
+| `{taxonomy}/list.html` | Taxonomy index (e.g., `tags/list.html` for `/tags/`) |
+| `{taxonomy}/single.html` | Single taxonomy term (e.g., `tags/single.html` for `/tags/rust/`) |
 
 ## Template context
 

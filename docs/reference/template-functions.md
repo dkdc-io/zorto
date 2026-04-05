@@ -21,8 +21,10 @@ Returns the full permalink for a content path or static file.
 <pre><code>&#123;&#123; get_url(path="posts/hello.md") &#125;&#125;
 &lt;!-- https://example.com/posts/hello/ --&gt;
 
-&#123;&#123; get_url(path="@/posts/_index.md") &#125;&#125;
+&#123;&#123; get_url(path="posts/_index.md") &#125;&#125;
 &lt;!-- https://example.com/posts/ --&gt;</code></pre>
+
+In content files, prefix paths with `@/` for build-time link validation.
 
 **Static file paths** are resolved relative to the site root:
 

@@ -63,7 +63,7 @@ Access these in templates:
 ```html
 {% if page.extra.author_url %}
   <a href="{{ page.extra.author_url }}">
-    <img src="{{ page.extra.author_image }}" alt="{{ page.authors[0] }}" />
+    <img src="{{ page.extra.author_image }}" alt="{{ page.taxonomies.authors | first }}" />
   </a>
 {% endif %}
 ```

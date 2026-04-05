@@ -28,7 +28,7 @@ The output is rendered inline. This powers self-updating documentation: our [CLI
 
 ## Built-in themes
 
-Zorto ships with three themes: `dkdc`, `light`, and `dark`. Set `theme = "dkdc"` in `config.toml` and you get a complete site: navbar, footer, theme toggle, responsive design.
+Zorto ships with 16 built-in themes including `zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, `slate`, and more. Set `theme = "dkdc"` in `config.toml` and you get a complete site: navbar, footer, theme toggle, responsive design.
 
 All themes support light/dark mode toggling. Override any template or SCSS variable locally; your files always win.
 

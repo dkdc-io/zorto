@@ -234,7 +234,7 @@ Add clickable anchor links to headings so readers can link to specific sections:
 insert_anchor_links = "right"
 ```
 
-Options: `"right"`, `"left"`, or `"none"` (default).
+Options: `"right"` or `"none"` (default).
 
 ## Build and deploy
 

@@ -46,7 +46,7 @@ By default, Zorto compiles only the active theme's SCSS. Enable `compile_all_the
 compile_all_themes = true
 ```
 
-This generates `style-{name}.css` for each theme (e.g., `style-zorto.css`, `style-dark.css`) alongside the main `style.css`. Useful for:
+This generates `style-{name}.css` for each theme (e.g., `style-zorto.css`, `style-ember.css`) alongside the main `style.css`. Useful for:
 
 - Theme preview or switcher pages
 - Letting users choose a theme client-side
