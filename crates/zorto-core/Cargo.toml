@@ -1,6 +1,6 @@
 [package]
 name = "zorto-core"
-version = "0.16.2"
+version = "0.17.1"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Cody <cody@dkdc.io>"]
@@ -64,8 +64,11 @@ ureq = "3"
 # Temp dirs (for theme SCSS merging)
 tempfile = "3"
 
-# Search index (SQLite FTS5)
+# Search index (SQLite)
 rusqlite = { version = "0.34", features = ["bundled"], optional = true }
+
+# Hashing (for code block cache)
+sha2 = "0.10"
 
 # Utilities
 anyhow = "1"
