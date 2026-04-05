@@ -63,6 +63,19 @@ pub fn execute_blocks(
                     errors.push(msg);
                 }
             }
+            "node" | "javascript" | "js" => match execute_node(block, working_dir) {
+                Ok((stdout, stderr)) => {
+                    block.output = Some(stdout);
+                    if !stderr.is_empty() {
+                        block.error = Some(stderr);
+                    }
+                }
+                Err(e) => {
+                    let msg = format!("Node.js execution error: {e}");
+                    block.error = Some(msg.clone());
+                    errors.push(msg);
+                }
+            },
             "bash" | "sh" => match execute_bash(block, working_dir) {
                 Ok((stdout, stderr)) => {
                     block.output = Some(stdout);
@@ -305,6 +318,36 @@ fn execute_bash(block: &ExecutableBlock, working_dir: &Path) -> anyhow::Result<(
     Ok((stdout, stderr))
 }
 
+/// Execute a Node.js code block via `node -e`
+fn execute_node(block: &ExecutableBlock, working_dir: &Path) -> anyhow::Result<(String, String)> {
+    let code = if let Some(ref file) = block.file_ref {
+        std::fs::read_to_string(working_dir.join(file))?
+    } else {
+        block.source.clone()
+    };
+
+    let output = std::process::Command::new("node")
+        .arg("-e")
+        .arg(&code)
+        .current_dir(working_dir)
+        .output()
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!(
+                    "Node.js is not installed or not in PATH. \
+                     Install it from https://nodejs.org to use {{node}} code blocks."
+                )
+            } else {
+                anyhow::anyhow!("Failed to run node: {e}")
+            }
+        })?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+
+    Ok((stdout, stderr))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -350,6 +393,86 @@ mod tests {
             language: "bash".into(),
             source: String::new(),
             file_ref: Some("script.sh".into()),
+            output: None,
+            error: None,
+            viz: Vec::new(),
+        }];
+        execute_blocks(&mut blocks, tmp.path(), tmp.path());
+        assert_eq!(blocks[0].output.as_deref(), Some("from-file\n"));
+    }
+
+    #[test]
+    fn test_execute_node_stdout() {
+        let tmp = TempDir::new().unwrap();
+        let mut blocks = vec![ExecutableBlock {
+            language: "node".into(),
+            source: "console.log('hello from node')".into(),
+            file_ref: None,
+            output: None,
+            error: None,
+            viz: Vec::new(),
+        }];
+        execute_blocks(&mut blocks, tmp.path(), tmp.path());
+        assert_eq!(blocks[0].output.as_deref(), Some("hello from node\n"));
+        assert!(blocks[0].error.is_none());
+    }
+
+    #[test]
+    fn test_execute_node_stderr() {
+        let tmp = TempDir::new().unwrap();
+        let mut blocks = vec![ExecutableBlock {
+            language: "node".into(),
+            source: "console.error('oops')".into(),
+            file_ref: None,
+            output: None,
+            error: None,
+            viz: Vec::new(),
+        }];
+        execute_blocks(&mut blocks, tmp.path(), tmp.path());
+        assert_eq!(blocks[0].output.as_deref(), Some(""));
+        assert_eq!(blocks[0].error.as_deref(), Some("oops\n"));
+    }
+
+    #[test]
+    fn test_execute_javascript_alias() {
+        let tmp = TempDir::new().unwrap();
+        let mut blocks = vec![ExecutableBlock {
+            language: "javascript".into(),
+            source: "console.log(1 + 2)".into(),
+            file_ref: None,
+            output: None,
+            error: None,
+            viz: Vec::new(),
+        }];
+        execute_blocks(&mut blocks, tmp.path(), tmp.path());
+        assert_eq!(blocks[0].output.as_deref(), Some("3\n"));
+        assert!(blocks[0].error.is_none());
+    }
+
+    #[test]
+    fn test_execute_js_alias() {
+        let tmp = TempDir::new().unwrap();
+        let mut blocks = vec![ExecutableBlock {
+            language: "js".into(),
+            source: "console.log('js alias')".into(),
+            file_ref: None,
+            output: None,
+            error: None,
+            viz: Vec::new(),
+        }];
+        execute_blocks(&mut blocks, tmp.path(), tmp.path());
+        assert_eq!(blocks[0].output.as_deref(), Some("js alias\n"));
+        assert!(blocks[0].error.is_none());
+    }
+
+    #[test]
+    fn test_execute_node_from_file() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("script.js"), "console.log('from-file')").unwrap();
+        let mut blocks = vec![ExecutableBlock {
+            language: "node".into(),
+            source: String::new(),
+            file_ref: Some("script.js".into()),
             output: None,
             error: None,
             viz: Vec::new(),
