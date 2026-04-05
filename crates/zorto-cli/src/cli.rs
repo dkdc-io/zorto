@@ -267,7 +267,16 @@ fn atty_stdin() -> bool {
 
 fn init_site(target: &std::path::Path, template: &str) -> anyhow::Result<()> {
     if target.join("config.toml").exists() {
-        anyhow::bail!("config.toml already exists in {}", target.display());
+        anyhow::bail!(
+            "A zorto site already exists in {} — run `zorto preview` to work with it",
+            target.display()
+        );
+    }
+    if target.join("website").join("config.toml").exists() {
+        anyhow::bail!(
+            "A zorto site already exists in {}/website/ — run `zorto --root website preview` to work with it",
+            target.display()
+        );
     }
 
     templates::write_template(target, template)?;
@@ -300,8 +309,18 @@ fn interactive_init(root: &std::path::Path) -> anyhow::Result<()> {
         root.join(&name)
     };
 
+    // Check for existing site in target dir or website/ subdir
     if target.join("config.toml").exists() {
-        anyhow::bail!("config.toml already exists in {}", target.display());
+        anyhow::bail!(
+            "A zorto site already exists in {} — run `zorto preview` to work with it",
+            target.display()
+        );
+    }
+    if target.join("website").join("config.toml").exists() {
+        anyhow::bail!(
+            "A zorto site already exists in {}/website/ — run `zorto --root website preview` to work with it",
+            target.display()
+        );
     }
 
     // 2. Template selection
