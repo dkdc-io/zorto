@@ -18,6 +18,8 @@
 }
 
 [data-theme="light"] {
+  --accent-secondary: rgb(100, 100, 140);
+  --accent-secondary-alpha-20: rgba(100, 100, 140, .2);
   --background: #f0f2f8;
   --background-raised: #ffffff;
   --color: #0b1120;

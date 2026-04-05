@@ -21,6 +21,11 @@
 }
 
 [data-theme="light"] {
+  --accent: #64748b;
+  --accent-alpha-70: rgba(100, 116, 139, .7);
+  --accent-alpha-20: rgba(100, 116, 139, .2);
+  --accent-secondary: #94a3b8;
+  --accent-secondary-alpha-20: rgba(148, 163, 184, .2);
   --background: #f8f9fa;
   --background-raised: #ffffff;
   --color: #1a1d23;

@@ -18,11 +18,16 @@
 }
 
 [data-theme="light"] {
+  --accent: rgb(16, 150, 100);
+  --accent-alpha-70: rgba(16, 150, 100, .7);
+  --accent-alpha-20: rgba(16, 150, 100, .2);
+  --accent-secondary: rgb(14, 148, 166);
+  --accent-secondary-alpha-20: rgba(14, 148, 166, .2);
   --background: #eefdf6;
   --background-raised: #ffffff;
   --color: #0a3b24;
   --color-muted: rgba(10, 59, 36, .5);
-  --border-color: rgba(52, 211, 153, .15);
+  --border-color: rgba(16, 150, 100, .15);
   --code-bg: #d1fae5;
 }
 
