@@ -422,6 +422,16 @@ hr {
   }
 }
 
+button.navbar__icon-link {
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 // ========================================
 // Theme toggle
 // ========================================

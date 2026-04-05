@@ -140,6 +140,11 @@
         <label for="nav-toggle" class="navbar__hamburger" role="button" aria-label="Toggle menu" aria-expanded="false">
             <span></span><span></span><span></span>
         </label>
+        {%- if config.generate_search %}
+        <button class="search-toggle navbar__icon-link" aria-label="Search" title="Search (Ctrl+K)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        {%- endif %}
         {%- if config.extra.social_links %}
         {%- for link in config.extra.social_links %}
         <a href="{{ link.url }}" class="navbar__icon-link" aria-label="{{ link.name }}" title="{{ link.name }}" target="_blank" rel="noopener">
@@ -313,6 +318,229 @@
 })();
 </script>
 {%- endif %}
+{%- endif %}
+{%- if config.generate_search %}
+<div class="search-modal" id="search-modal" hidden>
+  <div class="search-modal__backdrop"></div>
+  <div class="search-modal__dialog">
+    <div class="search-modal__header">
+      <svg class="search-modal__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="search-modal__input" id="search-input" placeholder="Search..." autocomplete="off" autofocus>
+      <kbd class="search-modal__kbd">Esc</kbd>
+    </div>
+    <div class="search-modal__status" id="search-status"></div>
+    <div class="search-modal__results" id="search-results"></div>
+  </div>
+</div>
+<script>
+(function() {
+  var modal = document.getElementById('search-modal');
+  if (!modal) return;
+  var input = document.getElementById('search-input');
+  var resultsEl = document.getElementById('search-results');
+  var statusEl = document.getElementById('search-status');
+  var backdrop = modal.querySelector('.search-modal__backdrop');
+  var db = null;
+  var SQL = null;
+  var dbLoading = false;
+  var dbReady = false;
+  var debounceTimer = null;
+  var selectedIdx = -1;
+
+  function openModal() {
+    modal.removeAttribute('hidden');
+    input.value = '';
+    resultsEl.innerHTML = '';
+    statusEl.textContent = '';
+    selectedIdx = -1;
+    setTimeout(function() { input.focus(); }, 50);
+    if (!dbReady && !dbLoading) {
+      statusEl.textContent = 'Loading search index...';
+      initDB().then(function() { statusEl.textContent = ''; });
+    }
+  }
+
+  function closeModal() {
+    modal.setAttribute('hidden', '');
+    input.value = '';
+    resultsEl.innerHTML = '';
+    statusEl.textContent = '';
+    selectedIdx = -1;
+  }
+
+  function getResultLinks() {
+    return resultsEl.querySelectorAll('.search-modal__result');
+  }
+
+  function updateSelection() {
+    var links = getResultLinks();
+    links.forEach(function(el, i) {
+      el.classList.toggle('search-modal__result--selected', i === selectedIdx);
+    });
+    if (selectedIdx >= 0 && links[selectedIdx]) {
+      links[selectedIdx].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Open on button click
+  var toggleBtn = document.querySelector('.search-toggle');
+  if (toggleBtn) toggleBtn.addEventListener('click', openModal);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      if (modal.hasAttribute('hidden')) openModal(); else closeModal();
+      return;
+    }
+    if (modal.hasAttribute('hidden')) return;
+    if (e.key === 'Escape') {
+      closeModal();
+      return;
+    }
+    var links = getResultLinks();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (links.length > 0) {
+        selectedIdx = (selectedIdx + 1) % links.length;
+        updateSelection();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (links.length > 0) {
+        selectedIdx = selectedIdx <= 0 ? links.length - 1 : selectedIdx - 1;
+        updateSelection();
+      }
+    } else if (e.key === 'Enter') {
+      if (selectedIdx >= 0 && links[selectedIdx]) {
+        e.preventDefault();
+        links[selectedIdx].click();
+      }
+    }
+  });
+
+  // Close on backdrop click
+  backdrop.addEventListener('click', closeModal);
+
+  async function initDB() {
+    if (db) return db;
+    if (dbLoading) return null;
+    dbLoading = true;
+    try {
+      if (!SQL) {
+        var sqlPromise = window.initSqlJs || null;
+        if (!sqlPromise) {
+          await new Promise(function(resolve, reject) {
+            var script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+        SQL = await initSqlJs({ locateFile: function(file) { return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/' + file; } });
+      }
+      var response = await fetch('/search.db');
+      var buf = await response.arrayBuffer();
+      db = new SQL.Database(new Uint8Array(buf));
+      dbReady = true;
+      return db;
+    } catch(err) {
+      console.error('Search init failed:', err);
+      statusEl.textContent = '';
+      resultsEl.innerHTML = '<div class="search-modal__empty">Failed to load search index.</div>';
+      return null;
+    } finally {
+      dbLoading = false;
+    }
+  }
+
+  async function doSearch(query) {
+    if (!query || query.length < 2) {
+      resultsEl.innerHTML = '';
+      statusEl.textContent = '';
+      selectedIdx = -1;
+      return;
+    }
+    var database = await initDB();
+    if (!database) return;
+    try {
+      var term = query.trim().toLowerCase();
+      var stmt = database.prepare(
+        "SELECT title, url, description, content, " +
+        "CASE WHEN title_lower = ?1 THEN 100 " +
+        "     WHEN title_lower LIKE ?1 || '%' THEN 80 " +
+        "     WHEN title_lower LIKE '%' || ?1 || '%' THEN 60 " +
+        "     ELSE 0 END + " +
+        "CASE WHEN description_lower LIKE '%' || ?1 || '%' THEN 20 ELSE 0 END + " +
+        "CASE WHEN content_lower LIKE '%' || ?1 || '%' THEN 10 ELSE 0 END as score " +
+        "FROM pages " +
+        "WHERE title_lower LIKE '%' || ?1 || '%' " +
+        "   OR description_lower LIKE '%' || ?1 || '%' " +
+        "   OR content_lower LIKE '%' || ?1 || '%' " +
+        "ORDER BY score DESC LIMIT 10"
+      );
+      stmt.bind([term]);
+      var html = '';
+      var count = 0;
+      var re = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      while (stmt.step()) {
+        var row = stmt.getAsObject();
+        count++;
+        // Build snippet: prefer description, fall back to content around first match
+        var snippet = '';
+        var desc = row.description || '';
+        var content = row.content || '';
+        if (desc) {
+          snippet = escapeHtml(desc);
+        } else if (content) {
+          var lower = content.toLowerCase();
+          var pos = lower.indexOf(term);
+          if (pos >= 0) {
+            var start = Math.max(0, pos - 40);
+            var raw = content.substring(start, start + 120);
+            snippet = (start > 0 ? '...' : '') + escapeHtml(raw.trim()) + (start + 120 < content.length ? '...' : '');
+          } else {
+            snippet = escapeHtml(content.substring(0, 120).trim()) + (content.length > 120 ? '...' : '');
+          }
+        }
+        // Highlight matching terms in title and snippet
+        var titleHtml = escapeHtml(row.title).replace(re, '<mark>$1</mark>');
+        snippet = snippet.replace(re, '<mark>$1</mark>');
+        html += '<a class="search-modal__result" href="' + row.url + '">' +
+          '<div class="search-modal__result-title">' + titleHtml + '</div>' +
+          '<div class="search-modal__result-url">' + escapeHtml(row.url) + '</div>' +
+          '<div class="search-modal__result-snippet">' + snippet + '</div>' +
+          '</a>';
+      }
+      stmt.free();
+      selectedIdx = -1;
+      if (count === 0) {
+        statusEl.textContent = '';
+        resultsEl.innerHTML = '<div class="search-modal__empty">No results found.</div>';
+      } else {
+        statusEl.textContent = count + ' result' + (count === 1 ? '' : 's');
+        resultsEl.innerHTML = html;
+      }
+    } catch(err) {
+      console.error('Search query failed:', err);
+      statusEl.textContent = '';
+      resultsEl.innerHTML = '<div class="search-modal__empty">Search failed.</div>';
+    }
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  input.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() { doSearch(input.value); }, 100);
+  });
+})();
+</script>
 {%- endif %}
 {%- block extra_body %}{% endblock extra_body %}
 <script>
