@@ -2677,4 +2677,20 @@ mod tests {
         let args = parse_args(r#"title="Hello World""#);
         assert_eq!(args.get("title").unwrap(), "Hello World");
     }
+
+    #[test]
+    fn test_multiple_shortcode_errors_returns_first() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        // Both shortcodes are missing templates — the first error is returned.
+        let input = r#"{{ missing_one(key="a") }} then {{ missing_two(key="b") }}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path());
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("missing_one"),
+            "expected error about first shortcode, got: {msg}"
+        );
+    }
 }
