@@ -11,7 +11,7 @@ pub async fn list(State(state): State<Arc<AppState>>) -> Html<String> {
     let site_title = state.site_title();
     let static_dir = state.root.join("static");
 
-    let mut file_items = Vec::new();
+    let mut files: Vec<(String, String, u64)> = Vec::new(); // (relative_path, ext, size)
     if static_dir.exists() {
         for entry in walkdir::WalkDir::new(&static_dir)
             .into_iter()
@@ -28,53 +28,128 @@ pub async fn list(State(state): State<Arc<AppState>>) -> Html<String> {
                 .to_string_lossy()
                 .to_string();
 
-            let size = std::fs::metadata(path)
-                .map(|m| format_size(m.len()))
-                .unwrap_or_default();
+            let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
             let ext = path
                 .extension()
                 .unwrap_or_default()
                 .to_string_lossy()
                 .to_lowercase();
-            let icon = match ext.as_str() {
-                "png" | "jpg" | "jpeg" | "gif" | "svg" | "ico" | "webp" => "🖼",
-                "css" | "scss" => "🎨",
-                "js" => "📜",
-                "pdf" => "📄",
-                "woff" | "woff2" | "ttf" | "otf" => "🔤",
-                _ => "📁",
-            };
 
-            file_items.push(format!(
-                r#"<li><span class="file-icon">{icon}</span> <span>{path}</span> <span style="margin-left: auto; color: #666680; font-size: 0.8rem;">{size}</span></li>"#,
-                path = escape(&relative),
-            ));
+            files.push((relative, ext, size));
         }
     }
 
-    file_items.sort();
-    let file_list = file_items.join("\n");
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let grid_items: String = files
+        .iter()
+        .map(|(path, ext, size)| {
+            let is_image = matches!(
+                ext.as_str(),
+                "png" | "jpg" | "jpeg" | "gif" | "svg" | "ico" | "webp"
+            );
+
+            let thumb = if is_image {
+                // For images served from the preview server
+                format!(
+                    r#"<div class="asset-thumb-placeholder" style="background: url('http://localhost:1111/{path}') center/contain no-repeat #111118; border-radius: 4px; width: 100%; height: 100px;"></div>"#,
+                    path = escape(path),
+                )
+            } else {
+                let icon = match ext.as_str() {
+                    "css" | "scss" => "css",
+                    "js" => "js",
+                    "pdf" => "pdf",
+                    "woff" | "woff2" | "ttf" | "otf" => "font",
+                    "mp4" | "webm" => "vid",
+                    _ => "file",
+                };
+                format!(
+                    r#"<div class="asset-thumb-placeholder">{icon}</div>"#
+                )
+            };
+
+            format!(
+                r#"<div class="asset-card">
+  <form method="POST" action="/assets/delete" onsubmit="return confirm('Delete {epath}?')">
+    <input type="hidden" name="path" value="{epath}">
+    <button type="submit" class="asset-delete" title="Delete">&times;</button>
+  </form>
+  {thumb}
+  <div class="asset-name">{epath}</div>
+  <div class="asset-size">{size}</div>
+</div>"#,
+                epath = escape(path),
+                size = format_size(*size),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let file_count = files.len();
 
     let body = format!(
-        r#"<h2>Assets</h2>
+        r#"<h2>Assets <span style="color: #666680; font-size: 0.85rem; font-weight: normal;">({file_count} files)</span></h2>
+
 <div class="card">
   <h3>Upload</h3>
-  <form method="POST" action="/assets/upload" enctype="multipart/form-data" style="margin-top: 12px;">
-    <div style="display: flex; gap: 8px; align-items: center;">
-      <input type="file" name="file" style="flex: 1;" required>
-      <input type="text" name="subdir" placeholder="subdirectory (optional)" style="width: 200px;">
-      <button type="submit" class="btn btn-primary">Upload</button>
+  <form method="POST" action="/assets/upload" enctype="multipart/form-data" id="upload-form">
+    <div class="drop-zone" id="drop-zone" style="margin-top: 12px;">
+      <p>Drag &amp; drop files here or click to browse</p>
+      <input type="file" name="file" id="file-input" style="display: none;" required>
+      <input type="hidden" name="subdir" id="subdir-input" value="">
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center; margin-top: 12px;">
+      <input type="text" name="subdir_display" placeholder="subdirectory (optional)" style="width: 200px;"
+             oninput="document.getElementById('subdir-input').value=this.value">
+      <button type="submit" class="btn btn-primary" id="upload-btn" disabled>Upload</button>
+      <span id="file-name" style="font-size: 0.8rem; color: #666680;"></span>
     </div>
   </form>
 </div>
 
-<div class="card">
-  <h3>Static Files</h3>
-  <ul class="file-list" style="margin-top: 12px;">
-    {file_list}
-  </ul>
-</div>"#
+<div class="asset-grid" style="margin-top: 16px;">
+  {grid_items}
+</div>
+
+<script>
+(function() {{
+  var dropZone = document.getElementById('drop-zone');
+  var fileInput = document.getElementById('file-input');
+  var fileName = document.getElementById('file-name');
+  var uploadBtn = document.getElementById('upload-btn');
+  var form = document.getElementById('upload-form');
+
+  dropZone.addEventListener('click', function() {{ fileInput.click(); }});
+
+  fileInput.addEventListener('change', function() {{
+    if (fileInput.files.length > 0) {{
+      fileName.textContent = fileInput.files[0].name;
+      uploadBtn.disabled = false;
+    }}
+  }});
+
+  dropZone.addEventListener('dragover', function(e) {{
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  }});
+
+  dropZone.addEventListener('dragleave', function() {{
+    dropZone.classList.remove('drag-over');
+  }});
+
+  dropZone.addEventListener('drop', function(e) {{
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) {{
+      fileInput.files = e.dataTransfer.files;
+      fileName.textContent = e.dataTransfer.files[0].name;
+      uploadBtn.disabled = false;
+    }}
+  }});
+}})();
+</script>"#
     );
 
     Html(html::page("Assets", &site_title, "assets", &body))
@@ -89,8 +164,11 @@ pub async fn upload(State(state): State<Arc<AppState>>, mut multipart: Multipart
     while let Ok(Some(field)) = multipart.next_field().await {
         let name = field.name().unwrap_or("").to_string();
 
-        if name == "subdir" {
-            subdir = field.text().await.unwrap_or_default();
+        if name == "subdir" || name == "subdir_display" {
+            let val = field.text().await.unwrap_or_default();
+            if !val.is_empty() {
+                subdir = val;
+            }
         } else if name == "file" {
             let filename = field.file_name().unwrap_or("upload").to_string();
 
@@ -142,9 +220,39 @@ pub async fn upload(State(state): State<Arc<AppState>>, mut multipart: Multipart
     let full = list(State(state))
         .await
         .0
-        .replace("<h2>Assets</h2>", &format!("{flash}<h2>Assets</h2>"));
+        .replace("<h2>Assets", &format!("{flash}<h2>Assets"));
 
     Html(full)
+}
+
+pub async fn delete(
+    State(state): State<Arc<AppState>>,
+    axum::Form(form): axum::Form<DeleteForm>,
+) -> Html<String> {
+    let static_dir = state.root.join("static");
+    let file_path = match validate_path(&static_dir, &form.path) {
+        Ok(p) => p,
+        Err(_) => {
+            let full = list(State(state)).await.0.replace(
+                "<h2>Assets",
+                r#"<div class="flash flash-error">Invalid path.</div><h2>Assets"#,
+            );
+            return Html(full);
+        }
+    };
+    if file_path.exists() {
+        let _ = std::fs::remove_file(&file_path);
+    }
+    let full = list(State(state)).await.0.replace(
+        "<h2>Assets",
+        r#"<div class="flash flash-success">File deleted.</div><h2>Assets"#,
+    );
+    Html(full)
+}
+
+#[derive(serde::Deserialize)]
+pub struct DeleteForm {
+    path: String,
 }
 
 fn format_size(bytes: u64) -> String {
