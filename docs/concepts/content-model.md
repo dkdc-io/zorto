@@ -1,5 +1,7 @@
 # Content model
 
+Zorto organizes content into sections and pages, derives URLs from the file structure, supports internal linking with build-time validation, and lets you co-locate assets alongside your markdown.
+
 ## Sections vs pages
 
 Zorto content has two types:
@@ -56,6 +58,66 @@ custom_field = "any value you want"
 | taxonomy fields | array of strings | Taxonomy values as top-level arrays (e.g. `tags = ["rust", "ssg"]`) |
 | `[extra]` | table | Arbitrary custom data, accessible in templates |
 
+## Permalinks
+
+Every page and section gets a **permalink** — an absolute URL combining `base_url` from your config with the page's path. The path is derived from the file's location in the content directory:
+
+| File path | URL path | Permalink (with `base_url = "https://example.com"`) |
+|-----------|----------|------------------------------------------------------|
+| `content/about.md` | `/about/` | `https://example.com/about/` |
+| `content/posts/hello.md` | `/posts/hello/` | `https://example.com/posts/hello/` |
+| `content/posts/_index.md` | `/posts/` | `https://example.com/posts/` |
+| `content/posts/my-post/index.md` | `/posts/my-post/` | `https://example.com/posts/my-post/` |
+
+Permalinks are available in templates as `page.permalink` and `section.permalink`. They are used for canonical URLs, Open Graph tags, feeds, and sitemaps.
+
+## Slugs
+
+The **slug** is the URL-safe name for a page, derived from the filename by default. Zorto uses the `slug` crate to convert filenames to lowercase, ASCII-only strings with hyphens:
+
+| Source | Slug |
+|--------|------|
+| `My First Post.md` | `my-first-post` |
+| `Héllo Wörld.md` | `hello-world` |
+| `posts/my-post/index.md` | `my-post` (from the directory name) |
+
+Override the slug in frontmatter to decouple the URL from the filename:
+
+```toml
++++
+title = "A very long title that you do not want in the URL"
+slug = "short-url"
++++
+```
+
+This page renders at `/short-url/` regardless of its filename. Co-located pages (`index.md` inside a directory) derive their slug from the directory name, not the filename — the custom `slug` field overrides that too.
+
+## Internal links with `@/`
+
+Link to other content files using the `@/` prefix:
+
+```text
+[About](&#64;/about.md)
+[First post](&#64;/posts/first-post.md)
+[Blog section](&#64;/posts/_index.md)
+```
+
+Zorto resolves these to the correct URLs at build time. The path after `@/` is relative to the `content/` directory.
+
+Anchor links work too:
+
+```text
+[Installation section](&#64;/getting-started.md#installation)
+```
+
+If the target file does not exist, Zorto emits a warning during the build:
+
+```
+unresolved internal link: @/posts/missing.md (no matching page or section found)
+```
+
+This gives you broken-link detection without an external tool. Use `zorto check` to validate all internal links without building the full site.
+
 ## Summaries
 
 Use `<!-- more -->` in a page's body to mark where the summary ends:
@@ -68,7 +130,17 @@ This is the summary shown on listing pages.
 The full content continues here.
 ```
 
-Everything above the marker becomes the page's `summary`, used in section listings and feeds.
+Everything above the marker becomes the page's `summary`, used in section listings and feeds. The summary is rendered as HTML — markdown formatting, links, and inline code all work.
+
+If no `<!-- more -->` marker is present, the `summary` field is `None` in templates. Use the `description` frontmatter field as a fallback for feed entries and meta tags.
+
+In templates, use the summary like this:
+
+<pre><code>&#123;%- if page.summary %&#125;
+  &#123;&#123; page.summary | safe &#125;&#125;
+&#123;%- elif page.description %&#125;
+  &#123;&#123; page.description &#125;&#125;
+&#123;%- endif %&#125;</code></pre>
 
 ## Co-located assets
 
@@ -87,17 +159,18 @@ Reference them with relative paths in your markdown:
 ![A photo](photo.jpg)
 ```
 
-## Internal links
+During the build, Zorto copies co-located assets to the page's output directory, preserving the relative path relationship. The output looks like:
 
-Link to other content files using the `@/` prefix:
+{% tree(caption="Assets are copied alongside the rendered HTML.") %}
+public/posts/my-post/
+  index.html
+  photo.jpg
+  diagram.svg
+{% end %}
 
-```text
-[About](&#64;/about.md)
-[First post](&#64;/posts/first-post.md)
-[Blog section](&#64;/posts/_index.md)
-```
+Any non-markdown file inside a content directory is treated as a co-located asset. This includes images (`.jpg`, `.png`, `.svg`, `.gif`, `.webp`), PDFs, data files, and anything else.
 
-Zorto resolves these to the correct URLs at build time and warns if the target doesn't exist.
+For site-wide assets that are not tied to a specific page (favicons, global images, fonts), use the `static/` directory instead. See [Asset management](../how-to/assets.md).
 
 ## Further reading
 
@@ -105,3 +178,4 @@ Zorto resolves these to the correct URLs at build time and warns if the target d
 - [Blog, events, and more](blog.md) — using sections for date-ordered content
 - [Templates](templates.md) — how sections and pages map to templates
 - [Organize content](../how-to/organize-content.md) — nested sections and external content directories
+- [Asset management](../how-to/assets.md) — static files, co-located content, fonts, and images
