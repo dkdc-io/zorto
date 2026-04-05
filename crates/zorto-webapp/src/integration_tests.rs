@@ -662,3 +662,160 @@ async fn section_save_preserves_extra_frontmatter() {
     let file = std::fs::read_to_string(tmp.path().join("site/content/posts/_index.md")).unwrap();
     assert!(file.contains("template = \"custom.html\""));
 }
+
+// ── Onboarding ────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn dashboard_redirects_when_no_site() {
+    let tmp = TempDir::new().unwrap();
+    // Create an app with no config.toml — empty dir
+    let root = tmp.path().join("empty");
+    std::fs::create_dir_all(&root).unwrap();
+    let output = root.join("public");
+    std::fs::create_dir_all(&output).unwrap();
+
+    let (reload_tx, _) = broadcast::channel::<()>(16);
+    let state = Arc::new(AppState {
+        root,
+        output_dir: output,
+        sandbox: None,
+        reload_tx,
+    });
+    let app = app(state);
+
+    let (status, _) = get(&app, "/").await;
+    // Should redirect to /setup
+    assert!(
+        status == StatusCode::SEE_OTHER || status == StatusCode::FOUND,
+        "expected redirect to setup, got {status}"
+    );
+}
+
+#[tokio::test]
+async fn setup_welcome_returns_ok() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("empty");
+    std::fs::create_dir_all(&root).unwrap();
+    let output = root.join("public");
+    std::fs::create_dir_all(&output).unwrap();
+
+    let (reload_tx, _) = broadcast::channel::<()>(16);
+    let state = Arc::new(AppState {
+        root,
+        output_dir: output,
+        sandbox: None,
+        reload_tx,
+    });
+    let app = app(state);
+
+    let (status, body) = get(&app, "/setup").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Create your site"));
+}
+
+#[tokio::test]
+async fn setup_template_page_returns_ok() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("empty");
+    std::fs::create_dir_all(&root).unwrap();
+    let output = root.join("public");
+    std::fs::create_dir_all(&output).unwrap();
+
+    let (reload_tx, _) = broadcast::channel::<()>(16);
+    let state = Arc::new(AppState {
+        root,
+        output_dir: output,
+        sandbox: None,
+        reload_tx,
+    });
+    let app = app(state);
+
+    let (status, body) = get(&app, "/setup/template").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Choose a template"));
+    assert!(body.contains("blog"));
+    assert!(body.contains("docs"));
+}
+
+// ── Asset delete ──────────────────────────────────────────────────
+
+#[tokio::test]
+async fn asset_delete_removes_file() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let file = tmp.path().join("site/static/style.css");
+    assert!(file.exists());
+
+    let (status, body) = post_form(&app, "/assets/delete", "path=style.css").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("File deleted"));
+    assert!(!file.exists(), "file should be deleted");
+}
+
+#[tokio::test]
+async fn asset_delete_traversal_blocked() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    // Try to delete a file outside static dir
+    let outside = tmp.path().join("site/config.toml");
+    assert!(outside.exists());
+
+    let (status, body) = post_form(&app, "/assets/delete", "path=../config.toml").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("Invalid path") || body.contains("error"),
+        "traversal should be blocked"
+    );
+    assert!(outside.exists(), "config.toml must not be deleted");
+}
+
+// ── HTMX served from webapp ──────────────────────────────────────
+
+#[tokio::test]
+async fn htmx_js_served() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let (status, body) = get(&app, "/static/htmx.min.js").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("htmx"), "should serve htmx library");
+}
+
+// ── Dashboard with welcome ────────────────────────────────────────
+
+#[tokio::test]
+async fn dashboard_shows_welcome_flash() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let (status, body) = get(&app, "/?welcome=1").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Site created successfully"));
+}
+
+#[tokio::test]
+async fn dashboard_shows_recent_pages() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let (status, body) = get(&app, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Recent Pages"));
+    assert!(body.contains("Hello World"));
+}
+
+// ── Config visual mode ────────────────────────────────────────────
+
+#[tokio::test]
+async fn config_shows_visual_form() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let (status, body) = get(&app, "/config").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Settings"));
+    assert!(body.contains("Theme"));
+    assert!(body.contains("Raw Config"));
+}
