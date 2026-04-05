@@ -12,6 +12,7 @@ mod build;
 mod config;
 mod dashboard;
 mod html;
+mod onboarding;
 mod pages;
 mod sections;
 
@@ -34,6 +35,10 @@ impl AppState {
         }
         "Zorto Site".to_string()
     }
+
+    fn site_exists(&self) -> bool {
+        self.root.join("config.toml").exists()
+    }
 }
 
 /// Build the axum router with the given shared state.
@@ -52,8 +57,22 @@ pub(crate) fn app(state: Arc<AppState>) -> Router {
         .route("/config", get(config::edit).post(config::save))
         .route("/assets", get(assets::list))
         .route("/assets/upload", post(assets::upload))
+        .route("/assets/delete", post(assets::delete))
         .route("/build", post(build::trigger))
         .route("/preview/render", post(build::render_preview))
+        .route("/static/htmx.min.js", get(serve_htmx))
+        // Onboarding wizard routes
+        .route("/setup", get(onboarding::welcome))
+        .route(
+            "/setup/template",
+            get(onboarding::template).post(onboarding::template_submit),
+        )
+        .route(
+            "/setup/theme",
+            get(onboarding::theme).post(onboarding::theme_submit),
+        )
+        .route("/setup/configure", get(onboarding::configure))
+        .route("/setup/create", post(onboarding::create))
         .with_state(state)
 }
 
@@ -75,14 +94,18 @@ pub fn run_webapp(root: &Path, output_dir: &Path, sandbox: Option<&Path>) -> any
             reload_tx,
         });
 
+        // Determine start page based on whether a site exists
+        let start_path = if state.site_exists() { "/" } else { "/setup" };
+
         let app = app(state);
 
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        // Bind to 0.0.0.0 so the webapp is accessible on LAN
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
         let listener = match tokio::net::TcpListener::bind(addr).await {
             Ok(l) => l,
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
                 eprintln!("Port {port} is in use, using a random available port...");
-                let fallback = SocketAddr::from(([127, 0, 0, 1], 0));
+                let fallback = SocketAddr::from(([0, 0, 0, 0], 0));
                 tokio::net::TcpListener::bind(fallback).await?
             }
             Err(e) => return Err(e.into()),
@@ -90,7 +113,11 @@ pub fn run_webapp(root: &Path, output_dir: &Path, sandbox: Option<&Path>) -> any
         let actual_addr = listener.local_addr()?;
 
         println!("zorto webapp: http://localhost:{}", actual_addr.port());
-        let _ = open::that(format!("http://localhost:{}", actual_addr.port()));
+        let _ = open::that(format!(
+            "http://localhost:{}{}",
+            actual_addr.port(),
+            start_path
+        ));
 
         axum::serve(listener, app)
             .with_graceful_shutdown(async {
@@ -101,6 +128,14 @@ pub fn run_webapp(root: &Path, output_dir: &Path, sandbox: Option<&Path>) -> any
 
         Ok(())
     })
+}
+
+/// Serve the embedded HTMX library.
+async fn serve_htmx() -> impl axum::response::IntoResponse {
+    (
+        [("content-type", "application/javascript")],
+        include_str!("htmx.min.js"),
+    )
 }
 
 pub(crate) fn rebuild_site(state: &AppState) -> Result<(), String> {
