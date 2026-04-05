@@ -6,59 +6,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <meta name="robots" content="noodp"/>
-    <style>html{opacity:0!important}html.css-ready{opacity:1!important;transition:opacity .08s ease-in!important}html.no-transitions,html.no-transitions *{transition:none!important}</style>
-    <link rel="stylesheet" href="/style.css" id="theme-stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    {%- if config.compile_all_themes %}
+    <link rel="stylesheet" href="/themes.css">
+    {%- endif %}
     <script>
       (function() {
         var html = document.documentElement;
-        html.classList.add('no-transitions');
+        // Apply saved light/dark mode before first paint
         var saved = localStorage.getItem('theme');
         var preferLight = window.matchMedia('(prefers-color-scheme: light)').matches;
         if (saved === 'light' || (!saved && preferLight)) {
           html.setAttribute('data-theme', 'light');
         }
+        // Apply saved site theme before first paint (themes.css has all
+        // theme variables scoped by [data-site-theme], so this is instant)
         var siteTheme = localStorage.getItem('site-theme');
-        var defaultTheme = '{{ config.theme | default(value="zorto") }}';
-        var styleLink = document.getElementById('theme-stylesheet');
-        var needsSwap = siteTheme && siteTheme !== defaultTheme;
-        function reveal() {
-          html.classList.add('css-ready');
-          requestAnimationFrame(function(){ html.classList.remove('no-transitions'); });
-        }
-        if (needsSwap) {
-          // Inject a NEW link for the saved theme. The original /style.css link
-          // remains render-blocking (keeping page hidden via browser default behavior)
-          // while the new theme CSS loads in parallel. Once the new CSS fires onload,
-          // we remove the old link and reveal the page.
-          var newLink = document.createElement('link');
-          newLink.rel = 'stylesheet';
-          newLink.href = '/style-' + siteTheme + '.css';
-          newLink.id = 'theme-stylesheet';
-          newLink.onload = function() {
-            styleLink.remove();
-            reveal();
-            newLink.onload = null;
-          };
-          // Remove id from old link before inserting new one
-          styleLink.removeAttribute('id');
-          styleLink.parentNode.insertBefore(newLink, styleLink.nextSibling);
-          // Safety timeout — show page even if onload doesn't fire
-          setTimeout(function() {
-            if (!html.classList.contains('css-ready')) {
-              styleLink.remove();
-              reveal();
-            }
-          }, 3000);
-        } else {
-          // Default theme — the render-blocking link handles everything.
-          // onload fires when CSS is ready; timeout handles cached scenarios.
-          styleLink.onload = function() {
-            reveal();
-            styleLink.onload = null;
-          };
-          setTimeout(function() {
-            if (!html.classList.contains('css-ready')) reveal();
-          }, 1500);
+        if (siteTheme) {
+          html.setAttribute('data-site-theme', siteTheme);
         }
       })();
     </script>
@@ -93,13 +58,6 @@
     {%- endif %}
     {%- if config.generate_feed %}
     <link rel="alternate" type="application/atom+xml" title="{{ config.title }} Feed" href="/atom.xml">
-    {%- endif %}
-    {%- if config.compile_all_themes %}
-    {%- for name in ["zorto", "dkdc", "default", "ember", "forest", "ocean", "rose", "slate"] %}
-    {%- if name != config.theme | default(value="zorto") %}
-    <link rel="prefetch" href="/style-{{ name }}.css" as="style">
-    {%- endif %}
-    {%- endfor %}
     {%- endif %}
     {%- block extra_head %}{% endblock extra_head %}
 </head>
@@ -243,51 +201,26 @@
   if (!switcher) return;
   var btn = switcher.querySelector('.theme-switcher__btn');
   var menu = document.getElementById('theme-switcher-menu');
-  var styleLink = document.getElementById('theme-stylesheet');
+  var html = document.documentElement;
   var defaultTheme = '{{ config.theme | default(value="zorto") }}';
   var currentSiteTheme = localStorage.getItem('site-theme') || defaultTheme;
 
   function applySiteTheme(name) {
-    var href = (name === defaultTheme) ? '/style.css' : '/style-' + name + '.css';
-    if (styleLink.getAttribute('href') !== href) {
-      // Inject new stylesheet, hide page, swap when ready
-      var newLink = document.createElement('link');
-      newLink.rel = 'stylesheet';
-      newLink.href = href;
-      newLink.id = 'theme-stylesheet';
-      document.documentElement.classList.remove('css-ready');
-      newLink.onload = function() {
-        styleLink.remove();
-        styleLink = newLink;
-        document.documentElement.classList.add('css-ready');
-        newLink.onload = null;
-      };
-      styleLink.removeAttribute('id');
-      styleLink.parentNode.insertBefore(newLink, styleLink.nextSibling);
-      setTimeout(function() {
-        if (!document.documentElement.classList.contains('css-ready')) {
-          styleLink.remove();
-          styleLink = newLink;
-          document.documentElement.classList.add('css-ready');
-        }
-      }, 2000);
+    // Instant switch: just set the attribute. themes.css has all variables
+    // scoped under [data-site-theme="X"], so the browser applies them immediately.
+    if (name === defaultTheme) {
+      html.removeAttribute('data-site-theme');
+    } else {
+      html.setAttribute('data-site-theme', name);
     }
     localStorage.setItem('site-theme', name);
     currentSiteTheme = name;
-    // Re-apply light/dark preference
-    var mode = localStorage.getItem('theme');
-    if (mode === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-    // Update active state
     menu.querySelectorAll('.theme-switcher__option').forEach(function(o) {
       o.classList.toggle('active', o.getAttribute('data-theme-name') === name);
     });
   }
 
-  // Mark initial active theme (don't re-apply on load — head script already handled it)
+  // Mark initial active theme
   menu.querySelectorAll('.theme-switcher__option').forEach(function(o) {
     o.classList.toggle('active', o.getAttribute('data-theme-name') === currentSiteTheme);
   });
@@ -601,11 +534,5 @@
 </script>
 {%- endif %}
 {%- block extra_body %}{% endblock extra_body %}
-<script>
-// Final safety net: only reveal if the head timeout already elapsed.
-// The head script sets its own timeouts (1500ms default, 3000ms swapped).
-// This catches edge cases where neither onload nor timeout fired yet.
-requestAnimationFrame(function(){ document.documentElement.classList.remove('no-transitions'); });
-</script>
 </body>
 </html>
