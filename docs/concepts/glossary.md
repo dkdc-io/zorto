@@ -236,7 +236,7 @@ A page with `draft = true` in its frontmatter. Drafts are excluded from producti
 
 ### Theme
 
-A bundled set of templates and styles that controls your site's appearance. Zorto ships four built-in themes (`zorto`, `dkdc`, `light`, `dark`) embedded directly in the binary. Set one in config with `theme = "zorto"` and you get a complete, working site without creating any templates or stylesheets. Override any template or style file locally to customize. See [themes](themes.md).
+A bundled set of templates and styles that controls your site's appearance. Zorto ships 16 built-in themes (`zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, `slate`, `midnight`, `sunset`, `mint`, `plum`, `sand`, `arctic`, `lime`, `charcoal`) embedded directly in the binary. Set one in config with `theme = "zorto"` and you get a complete, working site without creating any templates or stylesheets. Override any template or style file locally to customize. See [themes](themes.md).
 
 ### Slug
 

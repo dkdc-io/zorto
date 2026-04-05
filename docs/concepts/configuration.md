@@ -24,6 +24,18 @@ generate_feed = true
 generate_sitemap = true
 generate_llms_txt = true
 generate_md_files = true
+generate_search = true
+compile_all_themes = false
+default_language = "en"
+
+[[content_dirs]]
+path = "../docs"
+url_prefix = "docs"
+sort_by = "title"
+rewrite_links = true
+
+[cache]
+enable = true
 
 [markdown]
 highlight_code = true
@@ -53,19 +65,22 @@ author = "Your Name"
 | `base_url` | string | *required* | Full URL of your site |
 | `title` | string | `""` | Site title |
 | `description` | string | `""` | Site description |
-| `theme` | string | `""` | Theme name (`zorto`, `dkdc`, `light`, `dark`) |
+| `theme` | string | `""` | Theme name (one of 16 built-in themes: `zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, `slate`, `midnight`, `sunset`, `mint`, `plum`, `sand`, `arctic`, `lime`, `charcoal`) |
 | `compile_sass` | bool | `true` | Compile SCSS to CSS |
 | `generate_feed` | bool | `false` | Generate Atom feed |
 | `generate_sitemap` | bool | `true` | Generate sitemap.xml |
 | `generate_llms_txt` | bool | `true` | Generate llms.txt and llms-full.txt |
 | `generate_md_files` | bool | `false` | Generate .md versions of every page alongside HTML |
+| `generate_search` | bool | `false` | Generate SQLite FTS5 search index |
+| `compile_all_themes` | bool | `false` | Compile CSS for every built-in theme |
+| `default_language` | string | `"en"` | Default language code |
 
 ### `[markdown]`
 
 Controls how Markdown is rendered to HTML. The most commonly used options:
 
 - `highlight_code` — syntax highlighting for fenced code blocks
-- `insert_anchor_links` — add `#` links to headings (`"right"`, `"left"`, or `"none"`)
+- `insert_anchor_links` — add `#` links to headings (`"right"` or `"none"`)
 - `external_links_target_blank` — open external links in a new tab
 - `smart_punctuation` — convert `"quotes"` to "quotes" and `--` to —
 
@@ -81,6 +96,31 @@ name = "tags"
 ```
 
 This generates `/tags/` (all tags) and `/tags/<term>/` (pages with that tag). Add as many taxonomies as you need — tags, categories, authors, etc.
+
+### `[[content_dirs]]`
+
+Pull external directories into your site as content. Each entry maps an external path to a URL prefix:
+
+```toml
+[[content_dirs]]
+path = "../docs"
+url_prefix = "docs"
+sort_by = "title"
+rewrite_links = true
+```
+
+See [content directories reference](../reference/content-dirs.md) and [how to build a docs site](../how-to/build-docs-site.md) for details.
+
+### `[cache]`
+
+Cache executable code block results to speed up rebuilds:
+
+```toml
+[cache]
+enable = true
+```
+
+When enabled, Zorto caches code block output and reuses it if the code has not changed. See [build optimization](../how-to/build-optimization.md) for details.
 
 ### `[extra]`
 

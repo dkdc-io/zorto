@@ -9,7 +9,7 @@ Three layers:
 3. **Discovery** — sitemap.xml, robots.txt, llms.txt, search index (Zorto generates these automatically)
 
 > [!TIP]
-> If you use a built-in theme (`zorto`, `dkdc`, `default`, `dark`, etc.), Open Graph tags, canonical URLs, and Twitter Card tags are already included. The sections below show how to set them up manually if you use custom templates.
+> If you use a built-in theme (`zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, `slate`, etc.), Open Graph tags, canonical URLs, and Twitter Card tags are already included. The sections below show how to set them up manually if you use custom templates.
 
 ## Set title and description on every page
 

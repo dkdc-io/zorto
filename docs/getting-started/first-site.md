@@ -4,7 +4,7 @@ Now that you have a working site, here are some directions to explore.
 
 ## Recommended first: use a built-in theme
 
-The tutorial used hand-written templates. Zorto ships with built-in themes (`zorto`, `dkdc`, `light`, `dark`) that provide ready-made templates and styles. Add one line to `config.toml`:
+The tutorial used hand-written templates. Zorto ships with 16 built-in themes (`zorto`, `dkdc`, `default`, `ember`, `forest`, `ocean`, `rose`, `slate`, `midnight`, `sunset`, `mint`, `plum`, `sand`, `arctic`, `lime`, `charcoal`) that provide ready-made templates and styles. Add one line to `config.toml`:
 
 ```toml
 theme = "zorto"
