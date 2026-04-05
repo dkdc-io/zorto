@@ -325,11 +325,18 @@
   <div class="search-modal__dialog">
     <div class="search-modal__header">
       <svg class="search-modal__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" class="search-modal__input" id="search-input" placeholder="Search..." autocomplete="off" autofocus>
-      <kbd class="search-modal__kbd">Esc</kbd>
+      <input type="text" class="search-modal__input" id="search-input" placeholder="Search... &#8984;K" autocomplete="off" autofocus>
+      <button class="search-modal__close" id="search-close" aria-label="Close search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
     <div class="search-modal__status" id="search-status"></div>
     <div class="search-modal__results" id="search-results"></div>
+    <div class="search-modal__footer">
+      <span class="search-modal__hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
+      <span class="search-modal__hint"><kbd>&#9166;</kbd> open</span>
+      <span class="search-modal__hint"><kbd>esc</kbd> close</span>
+    </div>
   </div>
 </div>
 <script>
@@ -349,23 +356,27 @@
 
   function openModal() {
     modal.removeAttribute('hidden');
+    requestAnimationFrame(function() { modal.classList.add('search-modal--visible'); });
     input.value = '';
     resultsEl.innerHTML = '';
-    statusEl.textContent = '';
+    statusEl.innerHTML = '';
     selectedIdx = -1;
     setTimeout(function() { input.focus(); }, 50);
     if (!dbReady && !dbLoading) {
-      statusEl.textContent = 'Loading search index...';
-      initDB().then(function() { statusEl.textContent = ''; });
+      statusEl.innerHTML = '<div class="search-modal__loading"><div class="search-modal__spinner"></div><span>Loading search index...</span></div>';
+      initDB().then(function() { statusEl.innerHTML = ''; });
     }
   }
 
   function closeModal() {
-    modal.setAttribute('hidden', '');
-    input.value = '';
-    resultsEl.innerHTML = '';
-    statusEl.textContent = '';
-    selectedIdx = -1;
+    modal.classList.remove('search-modal--visible');
+    setTimeout(function() {
+      modal.setAttribute('hidden', '');
+      input.value = '';
+      resultsEl.innerHTML = '';
+      statusEl.innerHTML = '';
+      selectedIdx = -1;
+    }, 200);
   }
 
   function getResultLinks() {
@@ -419,8 +430,10 @@
     }
   });
 
-  // Close on backdrop click
+  // Close on backdrop click or close button
   backdrop.addEventListener('click', closeModal);
+  var closeBtn = document.getElementById('search-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
 
   async function initDB() {
     if (db) return db;
