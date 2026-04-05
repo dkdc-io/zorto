@@ -1,30 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WEBSITE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$WEBSITE_DIR"
-
-# ensure Python deps are installed
-if [ ! -d .venv ] || [ pyproject.toml -nt .venv ]; then
-    uv sync
-fi
-
-# set PYTHONHOME so the embedded PyO3 interpreter finds the stdlib
-if [ -z "${PYTHONHOME:-}" ]; then
-    PYTHONHOME="$(python3 -c 'import sys; print(sys.base_prefix)')"
-    export PYTHONHOME
-fi
-
-# ensure libpython is on the library path (needed for PyO3 on Linux)
-PYTHON_LIB_DIR="$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
-export LD_LIBRARY_PATH="${PYTHON_LIB_DIR}:${LD_LIBRARY_PATH:-}"
-
+WEBSITE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$WEBSITE_DIR/.." && pwd)"
-cd "$REPO_ROOT"
 
-# use installed zorto binary if available, otherwise cargo run
-if command -v zorto &>/dev/null; then
-    zorto --root website --sandbox . build "$@"
-else
-    cargo run -p zorto -- --root website --sandbox . build "$@"
-fi
+# install zorto + Python deps into the website venv
+cd "$WEBSITE_DIR"
+uv sync
+
+# build from repo root (--sandbox . allows shortcodes to reference ../crates/)
+cd "$REPO_ROOT"
+VIRTUAL_ENV="$WEBSITE_DIR/.venv" uv run --no-project zorto --root website --sandbox . build "$@"
