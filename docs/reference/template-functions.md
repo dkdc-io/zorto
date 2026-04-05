@@ -26,7 +26,7 @@ Returns the full permalink for a content path or static file.
 <!-- resolves to: https://example.com/posts/ -->
 ```
 
-Note: use the `@/` prefix (e.g., `@/posts/hello.md`) for build-time link validation in content files.
+Note: in content files, prefix paths with `@/` for build-time link validation.
 
 **Static file paths** are resolved relative to the site root:
 
