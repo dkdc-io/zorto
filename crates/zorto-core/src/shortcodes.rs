@@ -70,7 +70,7 @@ fn process_body_shortcodes(
 
     // Loop to handle nested shortcodes
     while BODY_SHORTCODE_RE.is_match(&result) && iterations < MAX_SHORTCODE_ITERATIONS {
-        let mut first_error: Option<anyhow::Error> = None;
+        let mut errors: Vec<String> = Vec::new();
         let new_result = BODY_SHORTCODE_RE.replace_all(&result, |caps: &regex::Captures| {
             let name = &caps[1];
             let args_str = &caps[2];
@@ -86,15 +86,13 @@ fn process_body_shortcodes(
             ) {
                 Ok(rendered) => rendered,
                 Err(e) => {
-                    if first_error.is_none() {
-                        first_error = Some(anyhow::anyhow!("shortcode error in {name}: {e}"));
-                    }
+                    errors.push(format!("shortcode '{name}': {e}"));
                     caps[0].to_string()
                 }
             }
         });
-        if let Some(e) = first_error {
-            return Err(e);
+        if !errors.is_empty() {
+            return Err(anyhow::anyhow!("shortcode errors:\n{}", errors.join("\n")));
         }
         result = new_result.into_owned();
         iterations += 1;
@@ -117,7 +115,7 @@ fn process_inline_shortcodes(
     site_root: &Path,
     sandbox_root: &Path,
 ) -> anyhow::Result<String> {
-    let mut first_error: Option<anyhow::Error> = None;
+    let mut errors: Vec<String> = Vec::new();
     let result = INLINE_SHORTCODE_RE.replace_all(content, |caps: &regex::Captures| {
         let name = &caps[1];
         let args_str = &caps[2];
@@ -125,16 +123,14 @@ fn process_inline_shortcodes(
         match resolve_shortcode(name, args_str, None, shortcode_dir, site_root, sandbox_root) {
             Ok(rendered) => rendered,
             Err(e) => {
-                if first_error.is_none() {
-                    first_error = Some(anyhow::anyhow!("shortcode error in {name}: {e}"));
-                }
+                errors.push(format!("shortcode '{name}': {e}"));
                 caps[0].to_string()
             }
         }
     });
 
-    if let Some(e) = first_error {
-        return Err(e);
+    if !errors.is_empty() {
+        return Err(anyhow::anyhow!("shortcode errors:\n{}", errors.join("\n")));
     }
 
     Ok(result.into_owned())
@@ -2689,11 +2685,11 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_shortcode_errors_returns_first() {
+    fn test_multiple_shortcode_errors_reports_all() {
         let tmp = TempDir::new().unwrap();
         let dir = tmp.path().join("shortcodes");
         std::fs::create_dir_all(&dir).unwrap();
-        // Both shortcodes are missing templates — the first error is returned.
+        // Both shortcodes are missing templates — all errors are reported.
         let input = r#"{{ missing_one(key="a") }} then {{ missing_two(key="b") }}"#;
         let result = process_shortcodes(input, &dir, tmp.path(), tmp.path());
         assert!(result.is_err());
@@ -2701,6 +2697,35 @@ mod tests {
         assert!(
             msg.contains("missing_one"),
             "expected error about first shortcode, got: {msg}"
+        );
+        assert!(
+            msg.contains("missing_two"),
+            "expected error about second shortcode, got: {msg}"
+        );
+        assert!(
+            msg.contains("shortcode errors:"),
+            "expected combined error header, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_multiple_body_shortcode_errors_reports_all() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("shortcodes");
+        std::fs::create_dir_all(&dir).unwrap();
+        // Use note shortcode with invalid type to trigger errors
+        let input =
+            r#"{% note(type="invalid1") %}A{% end %} {% note(type="invalid2") %}B{% end %}"#;
+        let result = process_shortcodes(input, &dir, tmp.path(), tmp.path());
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("invalid1"),
+            "expected error about first body shortcode, got: {msg}"
+        );
+        assert!(
+            msg.contains("invalid2"),
+            "expected error about second body shortcode, got: {msg}"
         );
     }
 }
