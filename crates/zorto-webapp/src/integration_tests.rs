@@ -819,3 +819,72 @@ async fn config_shows_visual_form() {
     assert!(body.contains("Theme"));
     assert!(body.contains("Raw Config"));
 }
+
+// ── Validation & error path coverage ─────────────────────────────
+
+#[tokio::test]
+async fn page_create_empty_title_rejected() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let form = "title=&section=posts&date=2025-03-15&description=&draft=false&tags=&body=Some+content";
+    let (status, body) = post_form(&app, "/pages/new", form).await;
+    // Should NOT redirect — should return an error page
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("Title is required"),
+        "expected title validation error in: {body}"
+    );
+}
+
+#[tokio::test]
+async fn page_edit_nonexistent_returns_empty_editor() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    // Request a page that doesn't exist on disk
+    let (status, body) = get(&app, "/pages/posts/does-not-exist.md").await;
+    assert_eq!(status, StatusCode::OK);
+    // Should return the editor (with empty content), not panic
+    assert!(body.contains("Edit:"), "expected editor page, got: {body}");
+}
+
+#[tokio::test]
+async fn preview_render_empty_body() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let (status, body) = post_body(&app, "/preview/render", "").await;
+    assert_eq!(status, StatusCode::OK);
+    // Empty input should produce empty (or minimal) output, not error
+    assert!(
+        !body.contains("panic") && !body.contains("500"),
+        "empty preview should not error: {body}"
+    );
+}
+
+#[tokio::test]
+async fn config_save_visual_mode_updates_fields() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+
+    let form = "mode=visual&content=&title=New+Title&base_url=https%3A%2F%2Fnew.example.com&description=A+great+site&theme=ocean&generate_feed=true&generate_sitemap=true";
+    let (status, body) = post_form(&app, "/config", form).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("saved") || body.contains("success") || body.contains("New Title"),
+        "expected success feedback: {body}"
+    );
+
+    let file = std::fs::read_to_string(tmp.path().join("site/config.toml")).unwrap();
+    assert!(file.contains("New Title"), "title should be updated");
+    assert!(
+        file.contains("new.example.com"),
+        "base_url should be updated"
+    );
+    assert!(file.contains("ocean"), "theme should be set");
+    assert!(
+        file.contains("generate_feed = true"),
+        "feed flag should be set"
+    );
+}
