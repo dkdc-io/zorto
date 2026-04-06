@@ -68,10 +68,13 @@
   }
   var colors = getColors();
   // Update colors when stylesheet changes (theme switch)
-  new MutationObserver(function() { colors = getColors(); }).observe(
-    document.getElementById('theme-stylesheet'),
-    { attributes: true, attributeFilter: ['href'] }
-  );
+  var themeLink = document.getElementById('theme-stylesheet') || document.querySelector('link[rel="stylesheet"]');
+  if (themeLink) {
+    new MutationObserver(function() { colors = getColors(); }).observe(
+      themeLink,
+      { attributes: true, attributeFilter: ['href'] }
+    );
+  }
   let particles = [];
   const count = 60;
   const fpsInterval = 1000 / 30;
