@@ -143,6 +143,23 @@ pub async fn serve(cfg: &ServeConfig<'_>) -> anyhow::Result<()> {
                 .watch(&path, notify::RecursiveMode::Recursive)?;
         }
     }
+    // Also watch any external content_dirs declared in config.toml so edits
+    // under e.g. `../docs` trigger a rebuild. Silently skip unreadable paths —
+    // a stale config shouldn't kill the preview server.
+    for dir_config in &site.config.content_dirs {
+        let external = cfg.root.join(&dir_config.path);
+        if external.exists() {
+            if let Err(e) = debouncer
+                .watcher()
+                .watch(&external, notify::RecursiveMode::Recursive)
+            {
+                eprintln!(
+                    "Warning: cannot watch content_dir {}: {e}",
+                    external.display()
+                );
+            }
+        }
+    }
     let config_path = cfg.root.join("config.toml");
     if config_path.exists() {
         debouncer
