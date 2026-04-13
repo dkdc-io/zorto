@@ -23,16 +23,16 @@ struct Cli {
     command: Option<Commands>,
 
     /// Site root directory
-    #[arg(short, long, default_value = ".")]
+    #[arg(short, long, default_value = ".", global = true)]
     root: PathBuf,
 
     /// Disable execution of code blocks ({python}, {bash}, {sh})
-    #[arg(short = 'N', long)]
+    #[arg(short = 'N', long, global = true)]
     no_exec: bool,
 
     /// Sandbox boundary for file operations (include shortcode, etc.).
     /// Paths cannot escape this directory. Defaults to --root.
-    #[arg(long)]
+    #[arg(long, global = true)]
     sandbox: Option<PathBuf>,
 
     /// Start the webapp CMS
@@ -511,5 +511,34 @@ mod tests {
             Some(Commands::Preview { interface, .. }) => assert_eq!(interface, "0.0.0.0"),
             _ => panic!("expected Preview"),
         }
+    }
+
+    #[test]
+    fn global_flag_root_accepted_after_subcommand() {
+        // Marketing users naturally type `zorto init my-site --root /tmp/foo`
+        // rather than `zorto --root /tmp/foo init my-site`. Both orderings
+        // must parse; clap#global = true makes it so.
+        let cli = Cli::parse_from(["zorto", "init", "my-site", "--root", "/tmp/foo"]);
+        assert_eq!(cli.root, PathBuf::from("/tmp/foo"));
+        assert!(matches!(cli.command, Some(Commands::Init { .. })));
+    }
+
+    #[test]
+    fn global_flag_root_accepted_before_subcommand() {
+        let cli = Cli::parse_from(["zorto", "--root", "/tmp/foo", "init", "my-site"]);
+        assert_eq!(cli.root, PathBuf::from("/tmp/foo"));
+        assert!(matches!(cli.command, Some(Commands::Init { .. })));
+    }
+
+    #[test]
+    fn global_flag_sandbox_accepted_after_subcommand() {
+        let cli = Cli::parse_from(["zorto", "build", "--sandbox", "/tmp"]);
+        assert_eq!(cli.sandbox, Some(PathBuf::from("/tmp")));
+    }
+
+    #[test]
+    fn global_flag_no_exec_accepted_after_subcommand() {
+        let cli = Cli::parse_from(["zorto", "preview", "--no-exec"]);
+        assert!(cli.no_exec);
     }
 }
