@@ -6,43 +6,44 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/dkdc-io/zorto/ci.yml?branch=main&label=CI)](https://github.com/dkdc-io/zorto/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8A2BE2.svg)](https://github.com/dkdc-io/zorto/blob/main/LICENSE)
 
-Zorto turns plain Markdown into polished websites, blog posts, and slide decks — same files, same workflow, no HTML gymnastics. Point it at a folder of `.md` files and get a production-ready site with search, themes, and a reveal.js-powered presentation mode (arrow keys, speaker view, fullscreen). Designed so you — or an AI agent working alongside you — can draft a landing page, an engineering blog post, or your next all-hands deck in minutes, not days.
-
-Prior art: inspired by [Zola](https://github.com/getzola/zola) (fast Rust SSG) and [Quarto](https://github.com/quarto-dev/quarto-cli) (executable documents). Zorto is MIT-licensed and free and open source forever.
+The AI-native static site generator (SSG) with executable code blocks, inspired by [Zola](https://github.com/getzola/zola) and [Quarto](https://github.com/quarto-dev/quarto-cli).
 
 ## Install
-
-Recommended:
 
 ```bash
 curl -LsSf https://dkdc.sh/zorto/install.sh | sh
 ```
 
-Pre-built binaries are available for Linux and macOS via Python (`uv`). Windows users should install via `cargo` or use macOS/Linux.
-
-uv:
-
-```bash
-uv tool install zorto
-```
-
-cargo:
-
-```bash
-cargo install zorto
-```
-
-Verify installation:
+Verify:
 
 ```{bash}
 zorto --version
 ```
 
-You can use `uvx` to run it without installing:
+<details>
+<summary>More install options</summary>
+
+The `curl | sh` installer above wraps `uv tool install zorto`. On Linux and macOS it pulls a pre-built wheel from PyPI that bundles the Rust engine (no compile step). Windows is not covered by the installer — use `cargo` from source or run under WSL.
+
+**uv (PyPI wheel, no compile):**
+
+```bash
+uv tool install zorto
+```
+
+**uvx (run once without installing):**
 
 ```bash
 uvx zorto
 ```
+
+**cargo (build from source, requires Rust 1.85+):**
+
+```bash
+cargo install zorto
+```
+
+</details>
 
 ## Usage
 
