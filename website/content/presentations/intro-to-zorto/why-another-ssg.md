@@ -3,6 +3,8 @@ title = "Why another SSG?"
 weight = 30
 +++
 
+{{ slide_image(src="/zorto-mark-transparent.png", alt="Zorto", top="20px", left="20px", width="56px", opacity="0.7") }}
+
 ## Why another SSG?
 
 {% columns() %}

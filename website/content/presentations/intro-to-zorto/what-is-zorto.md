@@ -1,6 +1,9 @@
 +++
 title = "What is Zorto?"
 weight = 20
+
+[extra]
+layout = "image-right"
 +++
 
 ## What is Zorto?
@@ -11,3 +14,5 @@ weight = 20
 - **Executable code blocks** -- run Python and Bash at build time
 - Built-in **search**, **feeds**, and **llms.txt**
 - MIT licensed, open source forever
+
+{{ slide_image(src="/zorto-logo-dark.png", alt="Zorto", width="360px", class="logo-glow") }}

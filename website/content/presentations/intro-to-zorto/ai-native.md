@@ -6,6 +6,8 @@ weight = 70
 background_color = "#0f3460"
 +++
 
+{{ slide_image(src="/zorto-mark-transparent.png", alt="Zorto", top="20px", right="20px", width="72px") }}
+
 ## AI-native by design
 
 - **Markdown + TOML** -- the simplest format for AI to read and write

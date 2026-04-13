@@ -6,6 +6,8 @@ weight = 40
 background_color = "#16213e"
 +++
 
+{{ slide_image(src="/zorto-mark-transparent.png", alt="Zorto", top="20px", right="20px", width="72px") }}
+
 ## Key features
 
 {% fragment() %}
