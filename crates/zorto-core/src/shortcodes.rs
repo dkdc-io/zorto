@@ -1022,31 +1022,36 @@ fn is_safe_css_length(val: &str) -> bool {
     if v == "0" || v == "auto" {
         return true;
     }
-    // Optional leading minus, digits with optional decimal, optional unit.
+    // Optional leading minus, digits with optional decimal, then required unit.
+    // Require at least one digit (before or after the dot) so `.em`, `-.em`
+    // etc. don't slip through as "valid" and silently drop in the browser.
     let bytes = v.as_bytes();
     let mut i = 0;
     if bytes.first() == Some(&b'-') {
         i += 1;
     }
-    let num_start = i;
+    let mut has_digit = false;
     while i < bytes.len() && bytes[i].is_ascii_digit() {
+        has_digit = true;
         i += 1;
     }
     if i < bytes.len() && bytes[i] == b'.' {
         i += 1;
         while i < bytes.len() && bytes[i].is_ascii_digit() {
+            has_digit = true;
             i += 1;
         }
     }
-    if i == num_start {
+    if !has_digit {
         return false;
     }
-    // Non-zero unitless values aren't valid CSS lengths. Reject them so
-    // authors see the mistake rather than getting a silent no-op.
+    // `fr` is grid-track-only and meaningless on slide_image — omitted. Non-
+    // zero unitless values aren't valid CSS lengths; reject so authors see
+    // the mistake rather than getting a silent no-op.
     let unit = &v[i..];
     matches!(
         unit,
-        "px" | "em" | "rem" | "%" | "vh" | "vw" | "vmin" | "vmax" | "pt" | "ch" | "ex" | "fr"
+        "px" | "em" | "rem" | "%" | "vh" | "vw" | "vmin" | "vmax" | "pt" | "ch" | "ex"
     )
 }
 
@@ -1106,11 +1111,17 @@ fn builtin_slide_image(args_str: &str) -> anyhow::Result<String> {
     }
     if let Some(val) = args.get("opacity") {
         let v = val.trim();
-        let parsed: Option<f64> = v.parse().ok();
+        // Strict: ASCII digits + at most one dot. No scientific notation, no
+        // signs, no whitespace — avoids surprises on older browsers that are
+        // shaky on `1e-1`-style forms, and keeps the validator predictable.
+        let ok_chars = !v.is_empty() && v.chars().all(|c| c.is_ascii_digit() || c == '.');
+        let one_dot = v.bytes().filter(|&b| b == b'.').count() <= 1;
+        let parsed: Option<f64> = if ok_chars && one_dot { v.parse().ok() } else { None };
         match parsed {
             Some(n) if (0.0..=1.0).contains(&n) => style_parts.push(format!("opacity: {v}")),
             _ => anyhow::bail!(
-                "slide_image: `opacity` must be a number between 0 and 1, got `{val}`"
+                "slide_image: `opacity` must be a plain decimal in [0, 1] \
+                 (no scientific notation, no signs), got `{val}`"
             ),
         }
     }
@@ -2970,7 +2981,9 @@ mod tests {
 
     #[test]
     fn is_safe_css_length_allow_reject() {
-        for good in ["0", "auto", "20px", "-10px", "50%", "1.5em", "100vh", "1fr"] {
+        for good in [
+            "0", "auto", "20px", "-10px", "50%", "1.5em", "0.5em", "100vh",
+        ] {
             assert!(is_safe_css_length(good), "expected accept: {good}");
         }
         for bad in [
@@ -2983,9 +2996,32 @@ mod tests {
             "url(x)",
             "20px !important",
             "20pxevil",
+            // Digitless dot — previously slipped past the validator.
+            ".em",
+            "-.em",
+            ".%",
+            "-.",
+            // fr dropped from allow-list (grid-only).
+            "1fr",
         ] {
             assert!(!is_safe_css_length(bad), "expected reject: {bad}");
         }
+    }
+
+    #[test]
+    fn slide_image_rejects_opacity_scientific_notation() {
+        let err = builtin_slide_image(r#"src="/logo.png" opacity="1e-1""#)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("opacity"), "got: {err}");
+    }
+
+    #[test]
+    fn slide_image_rejects_opacity_with_sign() {
+        let err = builtin_slide_image(r#"src="/logo.png" opacity="+0.5""#)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("opacity"), "got: {err}");
     }
 
     #[test]

@@ -181,6 +181,13 @@ import sys as _sys, weakref as _weakref
 __zorto_internal_viz_output__ = []
 if '__zorto_internal_rendered__' not in dir():
     __zorto_internal_rendered__ = _weakref.WeakSet()
+if '__zorto_internal_rendered_ids__' not in dir():
+    # Fallback for viz objects that can't be weak-referenced (rare for
+    # first-party plotly/altair, but possible for third-party wrappers).
+    # Keyed by id() — cannot detect CPython id-recycling, so we warn once
+    # per unseen type so the author notices.
+    __zorto_internal_rendered_ids__ = set()
+    __zorto_internal_warned_types__ = set()
 
 def _zorto_mark(_obj):
     """Return True if _obj is new (first time seen); record it as seen."""
@@ -190,6 +197,19 @@ def _zorto_mark(_obj):
         __zorto_internal_rendered__.add(_obj)
         return True
     except TypeError:
+        _t = type(_obj).__name__
+        if _t not in __zorto_internal_warned_types__:
+            __zorto_internal_warned_types__.add(_t)
+            print(
+                f'zorto: warning: viz object of type {_t} is not '
+                f'weak-referenceable; falling back to id-based dedup '
+                f'(may miss id-recycled charts)',
+                file=_sys.stderr,
+            )
+        _oid = id(_obj)
+        if _oid in __zorto_internal_rendered_ids__:
+            return False
+        __zorto_internal_rendered_ids__.add(_oid)
         return True
 
 def _zorto_typed_globals(_types):

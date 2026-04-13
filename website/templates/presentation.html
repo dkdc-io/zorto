@@ -167,8 +167,18 @@
             {%- for page in section.pages %}
             {%- set page_theme = page.extra.reveal_theme | default(value="") -%}
             {%- if page_theme and page_theme not in known_themes -%}{%- set page_theme = "" -%}{%- endif -%}
+            {#- `background_image` is interpolated by reveal.js into a CSS
+                `url(...)` on a style property. Setting via `.style.backgroundImage`
+                doesn't allow declaration injection (value is parsed for that
+                property only), but we still strip paren/quote/semicolon to
+                keep the emitted CSS clean and defensively block any future
+                consumer that uses `cssText`. -#}
+            {%- set bg_image = page.extra.background_image | default(value="")
+                | replace(from=")", to="") | replace(from="(", to="")
+                | replace(from=";", to="") | replace(from='"', to="")
+                | replace(from="'", to="") -%}
             <section
-                {%- if page.extra.background_image %} data-background-image="{{ page.extra.background_image }}"{% endif %}
+                {%- if bg_image %} data-background-image="{{ bg_image }}"{% endif %}
                 {%- if page.extra.background_color %} data-background-color="{{ page.extra.background_color }}"{% endif %}
                 {%- if page.extra.background_size %} data-background-size="{{ page.extra.background_size }}"{% endif %}
                 {%- if page.extra.background_opacity %} data-background-opacity="{{ page.extra.background_opacity }}"{% endif %}
@@ -203,6 +213,10 @@
         // same allow-list so an attacker-controlled frontmatter value cannot
         // load arbitrary CSS from the jsdelivr namespace.
         (function () {
+            // ALLOWED is rendered from the `known_themes` literal above. If
+            // you ever widen `known_themes` to include user-provided values,
+            // drop the `| safe` below and revalidate — otherwise an attacker-
+            // controlled string could load arbitrary CSS via the swap.
             var ALLOWED = {{ known_themes | json_encode | safe }};
             var themeLink = document.getElementById('theme');
             var defaultHref = themeLink.getAttribute('href');
