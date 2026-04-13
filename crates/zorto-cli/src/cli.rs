@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -31,16 +32,16 @@ struct Cli {
     command: Option<Commands>,
 
     /// Site root directory
-    #[arg(short, long, default_value = ".")]
+    #[arg(short, long, default_value = ".", global = true)]
     root: PathBuf,
 
     /// Disable execution of code blocks ({python}, {bash}, {sh})
-    #[arg(short = 'N', long)]
+    #[arg(short = 'N', long, global = true)]
     no_exec: bool,
 
     /// Sandbox boundary for file operations (include shortcode, etc.).
     /// Paths cannot escape this directory. Defaults to --root.
-    #[arg(long)]
+    #[arg(long, global = true)]
     sandbox: Option<PathBuf>,
 
     /// Start the webapp CMS
@@ -76,16 +77,16 @@ enum Commands {
         #[arg(short, long, default_value = DEFAULT_PREVIEW_PORT)]
         port: u16,
 
-        /// Include draft pages
+        /// Exclude draft pages (drafts are included by default in preview)
         #[arg(long)]
-        drafts: bool,
+        no_drafts: bool,
 
         /// Open browser
         #[arg(short = 'O', long)]
         open: bool,
 
         /// Bind address
-        #[arg(long, default_value = DEFAULT_BIND_ADDRESS)]
+        #[arg(long, visible_alias = "host", visible_alias = "bind", default_value = DEFAULT_BIND_ADDRESS)]
         interface: String,
     },
 
@@ -152,7 +153,17 @@ where
         return skill::handle_skill(command);
     }
 
-    let root = std::fs::canonicalize(&cli.root)?;
+    let display_root = cli.root.clone();
+    let root = std::fs::canonicalize(&cli.root).with_context(|| {
+        if cli.root.exists() {
+            format!("cannot resolve --root {}", cli.root.display())
+        } else {
+            format!(
+                "--root path does not exist: {}. Pass --root <existing-dir> or cd into your site.",
+                cli.root.display()
+            )
+        }
+    })?;
     let sandbox = resolve_sandbox(&cli.sandbox)?;
 
     #[cfg(feature = "webapp")]
@@ -167,8 +178,17 @@ where
     }
 
     let Some(command) = cli.command else {
-        Cli::parse_from(["zorto", "--help"]);
-        unreachable!();
+        if root.join("config.toml").exists() {
+            println!(
+                "Detected a zorto site at {}.\n\
+                 Run `zorto preview` to serve it with live reload, \
+                 or `zorto --help` for the full command list.",
+                display_root.display()
+            );
+        } else {
+            Cli::parse_from(["zorto", "--help"]);
+        }
+        return Ok(());
     };
 
     match command {
@@ -177,6 +197,7 @@ where
             drafts,
             base_url,
         } => {
+            let display_output = display_output_path(&display_root, &output);
             let output = resolve_output(&root, output);
             let mut site = site::Site::load(&root, &output, drafts)?;
             site.no_exec = cli.no_exec;
@@ -185,12 +206,12 @@ where
                 site.set_base_url(url);
             }
             site.build()?;
-            println!("Site built to {}", output.display());
+            println!("Site built to {}", display_output.display());
         }
         Commands::Preview {
             output,
             port,
-            drafts,
+            no_drafts,
             open,
             interface,
         } => {
@@ -198,7 +219,7 @@ where
             let cfg = serve::ServeConfig {
                 root: &root,
                 output_dir: &output,
-                drafts,
+                drafts: !no_drafts,
                 no_exec: cli.no_exec,
                 sandbox: sandbox.as_deref(),
                 interface: &interface,
@@ -209,10 +230,11 @@ where
             rt.block_on(serve::serve(&cfg))?;
         }
         Commands::Clean { output, cache } => {
+            let display_output = display_output_path(&display_root, &output);
             let output = resolve_output(&root, output);
             if output.exists() {
                 std::fs::remove_dir_all(&output)?;
-                println!("Removed {}", output.display());
+                println!("Removed {}", display_output.display());
             }
             if cache {
                 zorto_core::cache::clear_cache(&root)?;
@@ -258,6 +280,17 @@ fn resolve_output(root: &std::path::Path, output: PathBuf) -> PathBuf {
         root.join(output)
     } else {
         output
+    }
+}
+
+/// Build a user-facing display form of the output path, avoiding the
+/// `/private/tmp` canonical form that macOS introduces when resolving `/tmp`
+/// symlinks. Uses the pre-canonicalization `--root` input verbatim.
+fn display_output_path(display_root: &std::path::Path, output: &std::path::Path) -> PathBuf {
+    if output.is_absolute() {
+        output.to_path_buf()
+    } else {
+        display_root.join(output)
     }
 }
 
@@ -490,16 +523,95 @@ mod tests {
     }
 
     #[test]
-    fn parse_skill_install_all() {
-        let cli = Cli::parse_from([
+    fn preview_defaults_to_drafts_on() {
+        // No --no-drafts → drafts should be included. Marketing users previewing
+        // their site should see draft pages without having to know a flag.
+        let cli = Cli::parse_from(["zorto", "preview"]);
+        match cli.command {
+            Some(Commands::Preview { no_drafts, .. }) => assert!(!no_drafts),
+            other => panic!("expected Preview, got {other:?}", other = other.is_some()),
+        }
+    }
+
+    #[test]
+    fn preview_no_drafts_opts_out() {
+        let cli = Cli::parse_from(["zorto", "preview", "--no-drafts"]);
+        match cli.command {
+            Some(Commands::Preview { no_drafts, .. }) => assert!(no_drafts),
+            _ => panic!("expected Preview"),
+        }
+    }
+
+    #[test]
+    fn build_defaults_to_drafts_off() {
+        // Production build stays drafts-off by default.
+        let cli = Cli::parse_from(["zorto", "build"]);
+        match cli.command {
+            Some(Commands::Build { drafts, .. }) => assert!(!drafts),
+            _ => panic!("expected Build"),
+        }
+    }
+
+    #[test]
+    fn interface_accepts_host_alias() {
+        let cli = Cli::parse_from(["zorto", "preview", "--host", "0.0.0.0"]);
+        match cli.command {
+            Some(Commands::Preview { interface, .. }) => assert_eq!(interface, "0.0.0.0"),
+            _ => panic!("expected Preview"),
+        }
+    }
+
+    #[test]
+    fn interface_accepts_bind_alias() {
+        let cli = Cli::parse_from(["zorto", "preview", "--bind", "0.0.0.0"]);
+        match cli.command {
+            Some(Commands::Preview { interface, .. }) => assert_eq!(interface, "0.0.0.0"),
+            _ => panic!("expected Preview"),
+        }
+    }
+
+    #[test]
+    fn global_flag_root_accepted_after_subcommand() {
+        // Marketing users naturally type `zorto init my-site --root /tmp/foo`
+        // rather than `zorto --root /tmp/foo init my-site`. Both orderings
+        // must parse; clap#global = true makes it so.
+        let cli = Cli::parse_from(["zorto", "init", "my-site", "--root", "/tmp/foo"]);
+        assert_eq!(cli.root, PathBuf::from("/tmp/foo"));
+        assert!(matches!(cli.command, Some(Commands::Init { .. })));
+    }
+
+    #[test]
+    fn global_flag_root_accepted_before_subcommand() {
+        let cli = Cli::parse_from(["zorto", "--root", "/tmp/foo", "init", "my-site"]);
+        assert_eq!(cli.root, PathBuf::from("/tmp/foo"));
+        assert!(matches!(cli.command, Some(Commands::Init { .. })));
+    }
+
+    #[test]
+    fn global_flag_sandbox_accepted_after_subcommand() {
+        let cli = Cli::parse_from(["zorto", "build", "--sandbox", "/tmp"]);
+        assert_eq!(cli.sandbox, Some(PathBuf::from("/tmp")));
+    }
+
+    #[test]
+    fn global_flag_no_exec_accepted_after_subcommand() {
+        let cli = Cli::parse_from(["zorto", "preview", "--no-exec"]);
+        assert!(cli.no_exec);
+    }
+
+    #[test]
+    fn missing_root_error_is_actionable() {
+        // Marketing users who mistype --root should get a pointer back to safety,
+        // not a bare io::Error.
+        let result = run([
             "zorto",
-            "skill",
-            "install",
-            "--target",
-            "/tmp/skills",
-            "--all",
+            "--root",
+            "/definitely/does/not/exist/zorto-dx-test",
+            "build",
         ]);
-        assert!(matches!(cli.command, Some(Commands::Skill { .. })));
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("--root"), "got: {err}");
+        assert!(err.contains("does not exist"), "got: {err}");
     }
 
     #[test]

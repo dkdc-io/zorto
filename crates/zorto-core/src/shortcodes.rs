@@ -352,7 +352,12 @@ fn read_local_file(path: &str, site_root: &Path, sandbox_root: &Path) -> anyhow:
         .canonicalize()
         .map_err(|e| anyhow::anyhow!("include shortcode: cannot resolve sandbox root: {e}"))?;
     if !canonical.starts_with(&canonical_sandbox) {
-        anyhow::bail!("include shortcode: path escapes sandbox boundary: {}", path);
+        anyhow::bail!(
+            "include shortcode: path '{}' escapes sandbox '{}'. \
+             Pass --sandbox <dir> to widen the boundary, or move the file inside --root.",
+            path,
+            sandbox_root.display()
+        );
     }
 
     std::fs::read_to_string(&canonical).map_err(|e| {
@@ -2454,8 +2459,13 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(
-            err.contains("sandbox boundary") || err.contains("cannot resolve"),
+            err.contains("escapes sandbox") || err.contains("cannot resolve"),
             "expected sandbox escape error, got: {err}"
+        );
+        // The actionable error should mention --sandbox so users know the recovery path.
+        assert!(
+            !err.contains("escapes sandbox") || err.contains("--sandbox"),
+            "escape error missing --sandbox guidance: {err}"
         );
     }
 
