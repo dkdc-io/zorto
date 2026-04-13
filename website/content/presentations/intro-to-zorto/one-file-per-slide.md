@@ -1,18 +1,14 @@
 +++
 title = "One file per slide"
 weight = 80
+
+[extra]
+layout = "image-left"
 +++
 
-## Presentations: one file per slide
+{{ slide_image(src="/zorto-logo-dark.png", alt="Zorto", width="340px", class="logo-sway") }}
 
-```
-presentations/intro-to-zorto/
-  _index.md          # presentation config
-  title.md           # slide 1
-  what-is-zorto.md   # slide 2
-  why-another-ssg.md # slide 3
-  ...
-```
+## Presentations: one file per slide
 
 - Each slide is a markdown file with its own frontmatter
 - `weight` field controls slide order
