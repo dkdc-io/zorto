@@ -12,6 +12,6 @@ transition = "fade"
 
 # Zorto
 
-**The AI-native static site generator**
+**The AI-native static site generator (SSG)**
 
 *with executable code blocks*
