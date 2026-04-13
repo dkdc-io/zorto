@@ -16,7 +16,12 @@ const DEFAULT_SITE_TITLE: &str = "My Site";
 #[command(
     name = "zorto",
     version,
-    about = "The AI-native static site generator (SSG) with executable code blocks"
+    about = "The AI-native static site generator (SSG) with executable code blocks",
+    after_help = "Quickstart:\n  \
+        zorto init                  # set up a new site (interactive)\n  \
+        zorto preview --open        # preview with live reload\n\
+        \n\
+        Docs: https://zorto.dev/docs"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -48,19 +53,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Build the site
-    Build {
-        /// Output directory
-        #[arg(short, long, default_value = DEFAULT_OUTPUT_DIR)]
-        output: PathBuf,
+    /// Initialize a new site
+    Init {
+        /// Site directory name (defaults to current --root)
+        name: Option<String>,
 
-        /// Include draft pages
-        #[arg(long)]
-        drafts: bool,
-
-        /// Base URL override
-        #[arg(long)]
-        base_url: Option<String>,
+        /// Template to use (default, blog, docs, business)
+        #[arg(short, long, default_value = "default")]
+        template: String,
     },
 
     /// Start preview server with live reload
@@ -86,25 +86,19 @@ enum Commands {
         interface: String,
     },
 
-    /// Remove output directory and/or cache
-    Clean {
-        /// Output directory to remove
+    /// Build the site
+    Build {
+        /// Output directory
         #[arg(short, long, default_value = DEFAULT_OUTPUT_DIR)]
         output: PathBuf,
 
-        /// Also clear the code block execution cache (.zorto/cache/)
+        /// Include draft pages
         #[arg(long)]
-        cache: bool,
-    },
+        drafts: bool,
 
-    /// Initialize a new site
-    Init {
-        /// Site directory name (defaults to current --root)
-        name: Option<String>,
-
-        /// Template to use (default, blog, docs, business)
-        #[arg(short, long, default_value = "default")]
-        template: String,
+        /// Base URL override
+        #[arg(long)]
+        base_url: Option<String>,
     },
 
     /// Check site for errors without building
@@ -117,7 +111,19 @@ enum Commands {
         deny_warnings: bool,
     },
 
+    /// Remove output directory and/or cache
+    Clean {
+        /// Output directory to remove
+        #[arg(short, long, default_value = DEFAULT_OUTPUT_DIR)]
+        output: PathBuf,
+
+        /// Also clear the code block execution cache (.zorto/cache/)
+        #[arg(long)]
+        cache: bool,
+    },
+
     /// Install zorto skill files for AI agents
+    #[command(hide = true)]
     Skill {
         #[command(subcommand)]
         command: Option<skill::SkillCommands>,
