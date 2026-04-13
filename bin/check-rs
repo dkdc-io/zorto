@@ -8,6 +8,10 @@ cargo fmt -- --check
 echo "Running clippy..."
 cargo clippy --all-targets --all-features --workspace -- -D warnings
 
+echo "Checking for unused dependencies..."
+command -v cargo-machete >/dev/null 2>&1 || cargo install --locked cargo-machete
+cargo machete
+
 echo "Running Rust tests..."
 cargo test --all-targets --all-features --workspace
 
