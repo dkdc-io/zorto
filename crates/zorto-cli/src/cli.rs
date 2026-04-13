@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -143,7 +144,17 @@ where
         return skill::handle_skill(command);
     }
 
-    let root = std::fs::canonicalize(&cli.root)?;
+    let display_root = cli.root.clone();
+    let root = std::fs::canonicalize(&cli.root).with_context(|| {
+        if cli.root.exists() {
+            format!("cannot resolve --root {}", cli.root.display())
+        } else {
+            format!(
+                "--root path does not exist: {}. Pass --root <existing-dir> or cd into your site.",
+                cli.root.display()
+            )
+        }
+    })?;
     let sandbox = resolve_sandbox(&cli.sandbox)?;
 
     #[cfg(feature = "webapp")]
@@ -168,6 +179,7 @@ where
             drafts,
             base_url,
         } => {
+            let display_output = display_output_path(&display_root, &output);
             let output = resolve_output(&root, output);
             let mut site = site::Site::load(&root, &output, drafts)?;
             site.no_exec = cli.no_exec;
@@ -176,7 +188,7 @@ where
                 site.set_base_url(url);
             }
             site.build()?;
-            println!("Site built to {}", output.display());
+            println!("Site built to {}", display_output.display());
         }
         Commands::Preview {
             output,
@@ -200,10 +212,11 @@ where
             rt.block_on(serve::serve(&cfg))?;
         }
         Commands::Clean { output, cache } => {
+            let display_output = display_output_path(&display_root, &output);
             let output = resolve_output(&root, output);
             if output.exists() {
                 std::fs::remove_dir_all(&output)?;
-                println!("Removed {}", output.display());
+                println!("Removed {}", display_output.display());
             }
             if cache {
                 zorto_core::cache::clear_cache(&root)?;
@@ -250,6 +263,17 @@ fn resolve_output(root: &std::path::Path, output: PathBuf) -> PathBuf {
         root.join(output)
     } else {
         output
+    }
+}
+
+/// Build a user-facing display form of the output path, avoiding the
+/// `/private/tmp` canonical form that macOS introduces when resolving `/tmp`
+/// symlinks. Uses the pre-canonicalization `--root` input verbatim.
+fn display_output_path(display_root: &std::path::Path, output: &std::path::Path) -> PathBuf {
+    if output.is_absolute() {
+        output.to_path_buf()
+    } else {
+        display_root.join(output)
     }
 }
 
@@ -540,5 +564,20 @@ mod tests {
     fn global_flag_no_exec_accepted_after_subcommand() {
         let cli = Cli::parse_from(["zorto", "preview", "--no-exec"]);
         assert!(cli.no_exec);
+    }
+
+    #[test]
+    fn missing_root_error_is_actionable() {
+        // Marketing users who mistype --root should get a pointer back to safety,
+        // not a bare io::Error.
+        let result = run([
+            "zorto",
+            "--root",
+            "/definitely/does/not/exist/zorto-dx-test",
+            "build",
+        ]);
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("--root"), "got: {err}");
+        assert!(err.contains("does not exist"), "got: {err}");
     }
 }

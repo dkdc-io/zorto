@@ -235,8 +235,17 @@ impl Config {
     /// invalid TOML.
     pub fn load(root: &Path) -> anyhow::Result<Self> {
         let config_path = root.join("config.toml");
-        let content = std::fs::read_to_string(&config_path)
-            .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", config_path.display()))?;
+        let content = std::fs::read_to_string(&config_path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!(
+                    "no zorto site at {} (config.toml missing). \
+                     Run `zorto init` here, or pass --root <site-dir>.",
+                    root.display()
+                )
+            } else {
+                anyhow::anyhow!("cannot read {}: {e}", config_path.display())
+            }
+        })?;
         let mut config: Config =
             toml::from_str(&content).map_err(|e| anyhow::anyhow!("invalid config.toml: {e}"))?;
 
@@ -366,6 +375,17 @@ default_language = "ja"
         let tmp = TempDir::new().unwrap();
         let result = Config::load(tmp.path());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_missing_config_error_is_actionable() {
+        // Users landing in a non-site directory need to be told how to recover,
+        // not just "No such file or directory".
+        let tmp = TempDir::new().unwrap();
+        let err = Config::load(tmp.path()).unwrap_err().to_string();
+        assert!(err.contains("no zorto site"), "got: {err}");
+        assert!(err.contains("zorto init"), "got: {err}");
+        assert!(err.contains("--root"), "got: {err}");
     }
 
     // --- Additional config parsing tests ---
