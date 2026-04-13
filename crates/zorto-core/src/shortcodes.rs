@@ -1116,7 +1116,11 @@ fn builtin_slide_image(args_str: &str) -> anyhow::Result<String> {
         // shaky on `1e-1`-style forms, and keeps the validator predictable.
         let ok_chars = !v.is_empty() && v.chars().all(|c| c.is_ascii_digit() || c == '.');
         let one_dot = v.bytes().filter(|&b| b == b'.').count() <= 1;
-        let parsed: Option<f64> = if ok_chars && one_dot { v.parse().ok() } else { None };
+        let parsed: Option<f64> = if ok_chars && one_dot {
+            v.parse().ok()
+        } else {
+            None
+        };
         match parsed {
             Some(n) if (0.0..=1.0).contains(&n) => style_parts.push(format!("opacity: {v}")),
             _ => anyhow::bail!(
