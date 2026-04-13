@@ -92,9 +92,7 @@ pub async fn render_preview(State(state): State<Arc<AppState>>, body: String) ->
     }
 }
 
-fn load_md_config_and_base(
-    state: &AppState,
-) -> (zorto_core::config::MarkdownConfig, String) {
+fn load_md_config_and_base(state: &AppState) -> (zorto_core::config::MarkdownConfig, String) {
     let config_path = state.root.join("config.toml");
     let raw = std::fs::read_to_string(&config_path).unwrap_or_default();
     match toml::from_str::<zorto_core::config::Config>(&raw) {

@@ -930,7 +930,11 @@ async fn preview_uses_user_markdown_config_smart_punctuation() {
     )
     .unwrap();
     std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
-    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    std::fs::write(
+        root.join("templates/index.html"),
+        "<html>{{section.title}}</html>",
+    )
+    .unwrap();
     let (reload_tx, _) = broadcast::channel::<()>(16);
     let state = Arc::new(AppState {
         root,
@@ -964,7 +968,11 @@ async fn preview_uses_user_markdown_config_anchor_links() {
     )
     .unwrap();
     std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
-    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    std::fs::write(
+        root.join("templates/index.html"),
+        "<html>{{section.title}}</html>",
+    )
+    .unwrap();
     let (reload_tx, _) = broadcast::channel::<()>(16);
     let state = Arc::new(AppState {
         root,
@@ -1079,8 +1087,12 @@ async fn preview_suppresses_executable_code_blocks() {
 async fn preview_no_disclaimer_for_plain_markdown() {
     let tmp = TempDir::new().unwrap();
     let app = test_app(&tmp);
-    let (status, body) =
-        post_body(&app, "/_render-markdown", "# Heading\n\nA paragraph.\n\n- list item\n").await;
+    let (status, body) = post_body(
+        &app,
+        "/_render-markdown",
+        "# Heading\n\nA paragraph.\n\n- list item\n",
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert!(
         !body.contains("preview-disclaimer"),
@@ -1550,7 +1562,11 @@ async fn config_visual_save_preserves_explicit_sitemap_true() {
     )
     .unwrap();
     std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
-    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    std::fs::write(
+        root.join("templates/index.html"),
+        "<html>{{section.title}}</html>",
+    )
+    .unwrap();
     let (reload_tx, _) = broadcast::channel::<()>(16);
     let state = Arc::new(AppState {
         root: root.clone(),
@@ -1595,7 +1611,11 @@ async fn config_visual_save_does_not_stomp_default_sitemap() {
     )
     .unwrap();
     std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
-    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    std::fs::write(
+        root.join("templates/index.html"),
+        "<html>{{section.title}}</html>",
+    )
+    .unwrap();
     let (reload_tx, _) = broadcast::channel::<()>(16);
     let state = Arc::new(AppState {
         root: root.clone(),
@@ -1636,7 +1656,11 @@ async fn config_visual_save_unchecks_explicit_true_to_false() {
     )
     .unwrap();
     std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
-    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    std::fs::write(
+        root.join("templates/index.html"),
+        "<html>{{section.title}}</html>",
+    )
+    .unwrap();
     let (reload_tx, _) = broadcast::channel::<()>(16);
     let state = Arc::new(AppState {
         root: root.clone(),
@@ -1686,7 +1710,11 @@ name = "categories"
 "#;
     std::fs::write(root.join("config.toml"), original).unwrap();
     std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
-    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    std::fs::write(
+        root.join("templates/index.html"),
+        "<html>{{section.title}}</html>",
+    )
+    .unwrap();
     let (reload_tx, _) = broadcast::channel::<()>(16);
     let state = Arc::new(AppState {
         root: root.clone(),
@@ -1741,7 +1769,11 @@ async fn config_visual_form_renders_default_sitemap_as_checked() {
     )
     .unwrap();
     std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
-    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    std::fs::write(
+        root.join("templates/index.html"),
+        "<html>{{section.title}}</html>",
+    )
+    .unwrap();
     let (reload_tx, _) = broadcast::channel::<()>(16);
     let state = Arc::new(AppState {
         root,
