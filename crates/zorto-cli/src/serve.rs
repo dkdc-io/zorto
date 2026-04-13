@@ -72,30 +72,38 @@ pub struct ServeConfig<'a> {
 
 pub async fn serve(cfg: &ServeConfig<'_>) -> anyhow::Result<()> {
     // Bind listener first so we know the actual port before building
-    let requested: SocketAddr = format!("{}:{}", cfg.interface, cfg.port).parse()?;
+    let requested_port = cfg.port;
+    let requested: SocketAddr = format!("{}:{}", cfg.interface, requested_port).parse()?;
     let listener = match tokio::net::TcpListener::bind(requested).await {
         Ok(l) => l,
         Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-            eprintln!(
-                "Port {} is in use, using a random available port...",
-                cfg.port
-            );
             let fallback: SocketAddr = format!("{}:0", cfg.interface).parse()?;
-            tokio::net::TcpListener::bind(fallback).await?
+            let l = tokio::net::TcpListener::bind(fallback).await?;
+            let fallback_port = l.local_addr().map(|a| a.port()).unwrap_or(0);
+            println!("Port {requested_port} busy — using {fallback_port} instead.");
+            l
         }
         Err(e) => return Err(e.into()),
     };
     let addr = listener.local_addr()?;
     let base_url = format!("http://{addr}");
 
-    // Initial build
-    println!("Building site...");
+    // Initial build (timed, with draft-count surfacing).
+    let build_start = std::time::Instant::now();
     let mut site = zorto_core::site::Site::load(cfg.root, cfg.output_dir, cfg.drafts)?;
     site.no_exec = cfg.no_exec;
     site.sandbox = cfg.sandbox.map(|p| p.to_path_buf());
     site.set_base_url(base_url.clone());
+    let draft_total = site.pages.values().filter(|p| p.draft).count();
     site.build()?;
-    println!("Site built successfully.");
+    let build_ms = build_start.elapsed().as_millis();
+    if draft_total > 0 {
+        if cfg.drafts {
+            println!("Including {draft_total} draft page(s). Pass --no-drafts to hide them.");
+        } else {
+            println!("Hiding {draft_total} draft page(s). Remove --no-drafts to include them.");
+        }
+    }
 
     // Set up broadcast channel for live reload
     let (reload_tx, _) = broadcast::channel::<()>(RELOAD_CHANNEL_CAPACITY);
@@ -109,11 +117,16 @@ pub async fn serve(cfg: &ServeConfig<'_>) -> anyhow::Result<()> {
         .fallback(get(serve_file).head(serve_file))
         .with_state(state);
 
-    println!("Serving at http://{addr}");
+    let url = format!("http://{addr}");
+    println!("Ready at {url} (build {build_ms}ms). Ctrl-C to stop.");
+    if !cfg.open_browser {
+        println!("Tip: pass --open to launch your browser automatically.");
+    }
 
     if cfg.open_browser {
-        let url = format!("http://{addr}");
-        let _ = open::that(&url);
+        if let Err(e) = open::that(&url) {
+            eprintln!("Could not open browser ({e}). Visit {url} manually.");
+        }
     }
 
     // Bridge notify events into a tokio channel so the watcher loop is fully async

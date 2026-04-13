@@ -73,16 +73,16 @@ enum Commands {
         #[arg(short, long, default_value = DEFAULT_PREVIEW_PORT)]
         port: u16,
 
-        /// Include draft pages
+        /// Exclude draft pages (drafts are included by default in preview)
         #[arg(long)]
-        drafts: bool,
+        no_drafts: bool,
 
         /// Open browser
         #[arg(short = 'O', long)]
         open: bool,
 
         /// Bind address
-        #[arg(long, default_value = DEFAULT_BIND_ADDRESS)]
+        #[arg(long, visible_alias = "host", visible_alias = "bind", default_value = DEFAULT_BIND_ADDRESS)]
         interface: String,
     },
 
@@ -181,7 +181,7 @@ where
         Commands::Preview {
             output,
             port,
-            drafts,
+            no_drafts,
             open,
             interface,
         } => {
@@ -189,7 +189,7 @@ where
             let cfg = serve::ServeConfig {
                 root: &root,
                 output_dir: &output,
-                drafts,
+                drafts: !no_drafts,
                 no_exec: cli.no_exec,
                 sandbox: sandbox.as_deref(),
                 interface: &interface,
@@ -463,5 +463,53 @@ mod tests {
             "--all",
         ]);
         assert!(matches!(cli.command, Some(Commands::Skill { .. })));
+    }
+
+    #[test]
+    fn preview_defaults_to_drafts_on() {
+        // No --no-drafts → drafts should be included. Marketing users previewing
+        // their site should see draft pages without having to know a flag.
+        let cli = Cli::parse_from(["zorto", "preview"]);
+        match cli.command {
+            Some(Commands::Preview { no_drafts, .. }) => assert!(!no_drafts),
+            other => panic!("expected Preview, got {other:?}", other = other.is_some()),
+        }
+    }
+
+    #[test]
+    fn preview_no_drafts_opts_out() {
+        let cli = Cli::parse_from(["zorto", "preview", "--no-drafts"]);
+        match cli.command {
+            Some(Commands::Preview { no_drafts, .. }) => assert!(no_drafts),
+            _ => panic!("expected Preview"),
+        }
+    }
+
+    #[test]
+    fn build_defaults_to_drafts_off() {
+        // Production build stays drafts-off by default.
+        let cli = Cli::parse_from(["zorto", "build"]);
+        match cli.command {
+            Some(Commands::Build { drafts, .. }) => assert!(!drafts),
+            _ => panic!("expected Build"),
+        }
+    }
+
+    #[test]
+    fn interface_accepts_host_alias() {
+        let cli = Cli::parse_from(["zorto", "preview", "--host", "0.0.0.0"]);
+        match cli.command {
+            Some(Commands::Preview { interface, .. }) => assert_eq!(interface, "0.0.0.0"),
+            _ => panic!("expected Preview"),
+        }
+    }
+
+    #[test]
+    fn interface_accepts_bind_alias() {
+        let cli = Cli::parse_from(["zorto", "preview", "--bind", "0.0.0.0"]);
+        match cli.command {
+            Some(Commands::Preview { interface, .. }) => assert_eq!(interface, "0.0.0.0"),
+            _ => panic!("expected Preview"),
+        }
     }
 }
