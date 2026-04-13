@@ -911,6 +911,221 @@ async fn preview_strips_frontmatter() {
     assert!(!body.contains("title = "));
 }
 
+// ── Preview render fidelity (wave-4 H4) ────────────────────────────
+
+#[tokio::test]
+async fn preview_uses_user_markdown_config_smart_punctuation() {
+    // The preview previously rendered with `MarkdownConfig::default()`,
+    // which silently disagreed with any user-customised `[markdown]` table.
+    // Verify that turning on smart punctuation in config.toml causes the
+    // preview pane to apply it (the same way `zorto build` would).
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("site");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::create_dir_all(root.join("templates")).unwrap();
+    std::fs::create_dir_all(root.join("static")).unwrap();
+    std::fs::write(
+        root.join("config.toml"),
+        "base_url = \"https://example.com\"\ntitle = \"Test\"\n\n[markdown]\nsmart_punctuation = true\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
+    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    let (reload_tx, _) = broadcast::channel::<()>(16);
+    let state = Arc::new(AppState {
+        root,
+        output_dir: tmp.path().join("site/public"),
+        sandbox: None,
+        reload_tx,
+        preview_base_url: "http://127.0.0.1:0/preview".to_string(),
+    });
+    let app = app(state);
+
+    // Three straight ASCII hyphens become an em-dash under smart punctuation.
+    let (_, body) = post_body(&app, "/_render-markdown", "Hello---world").await;
+    assert!(
+        body.contains('\u{2014}'),
+        "smart-punctuation em-dash must appear when [markdown].smart_punctuation = true: {body}"
+    );
+}
+
+#[tokio::test]
+async fn preview_uses_user_markdown_config_anchor_links() {
+    // Heading anchor links must follow the user's [markdown].insert_anchor_links
+    // setting, not MarkdownConfig::default().
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("site");
+    std::fs::create_dir_all(root.join("content")).unwrap();
+    std::fs::create_dir_all(root.join("templates")).unwrap();
+    std::fs::create_dir_all(root.join("static")).unwrap();
+    std::fs::write(
+        root.join("config.toml"),
+        "base_url = \"https://example.com\"\ntitle = \"Test\"\n\n[markdown]\ninsert_anchor_links = \"right\"\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("content/_index.md"), "+++\ntitle=\"Home\"\n+++\n").unwrap();
+    std::fs::write(root.join("templates/index.html"), "<html>{{section.title}}</html>").unwrap();
+    let (reload_tx, _) = broadcast::channel::<()>(16);
+    let state = Arc::new(AppState {
+        root,
+        output_dir: tmp.path().join("site/public"),
+        sandbox: None,
+        reload_tx,
+        preview_base_url: "http://127.0.0.1:0/preview".to_string(),
+    });
+    let app = app(state);
+
+    let (_, body) = post_body(&app, "/_render-markdown", "## Hello World").await;
+    assert!(
+        body.contains("zorto-anchor"),
+        "anchor link must render when insert_anchor_links = \"right\": {body}"
+    );
+}
+
+#[tokio::test]
+async fn preview_stubs_inline_shortcodes_with_visible_placeholder() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+    let content = "Some text\n\n{{ figure(src=\"a.png\", alt=\"x\") }}\n\nMore text";
+    let (status, body) = post_body(&app, "/_render-markdown", content).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("preview-shortcode-stub"),
+        "shortcode stub class must appear: {body}"
+    );
+    assert!(
+        body.contains(r#"data-name="figure""#),
+        "stub must label which shortcode was unrenderable: {body}"
+    );
+    // The user's actual args must NOT survive — the stub uses `(…)` to
+    // represent them. (The stub's `<code>{{ figure(…) }}</code>` label DOES
+    // contain `{{ figure`, so we can't assert against that fragment.)
+    assert!(
+        !body.contains("src=\"a.png\""),
+        "user's actual shortcode args must not survive in preview: {body}"
+    );
+    assert!(
+        !body.contains(r#"alt="x""#),
+        "user's actual shortcode args must not survive: {body}"
+    );
+    // Disclaimer banner appears
+    assert!(
+        body.contains("preview-disclaimer"),
+        "disclaimer banner must mention shortcode stubbing: {body}"
+    );
+    assert!(
+        body.contains("1 shortcode stubbed"),
+        "disclaimer must count shortcodes: {body}"
+    );
+}
+
+#[tokio::test]
+async fn preview_stubs_body_shortcodes_with_visible_placeholder() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+    let content = "Before\n\n{% note(type=\"info\") %}Some body content here.{% end %}\n\nAfter";
+    let (status, body) = post_body(&app, "/_render-markdown", content).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(r#"data-kind="body""#),
+        "body shortcode must be classified as kind=body: {body}"
+    );
+    assert!(
+        body.contains(r#"data-name="note""#),
+        "body shortcode name must be labelled: {body}"
+    );
+    // The actual body content + the user's args must not survive — the stub
+    // uses `(…)…{% end %}` placeholder syntax. (The stub's own representation
+    // includes `{% note(…) %}` literally, so we don't assert on `{% note`.)
+    assert!(
+        !body.contains("type=\"info\""),
+        "user's shortcode args must not survive: {body}"
+    );
+    assert!(
+        !body.contains("Some body content here"),
+        "user's body content must not survive (it's swallowed into the stub): {body}"
+    );
+}
+
+#[tokio::test]
+async fn preview_suppresses_executable_code_blocks() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+    // Executable block in zorto syntax: ```{python}
+    let content = "Intro\n\n```{python}\nprint('hello')\n```\n\nOutro";
+    let (status, body) = post_body(&app, "/_render-markdown", content).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("preview-suppressed-pill"),
+        "exec block must show suppressed pill: {body}"
+    );
+    assert!(
+        body.contains("code execution suppressed"),
+        "user-facing copy must explain why: {body}"
+    );
+    // The placeholder comment must be gone
+    assert!(
+        !body.contains("EXEC_BLOCK"),
+        "raw placeholder must be replaced: {body}"
+    );
+    // Disclaimer mentions exec count
+    assert!(
+        body.contains("1 executable code block"),
+        "disclaimer must count exec blocks: {body}"
+    );
+}
+
+#[tokio::test]
+async fn preview_no_disclaimer_for_plain_markdown() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+    let (status, body) =
+        post_body(&app, "/_render-markdown", "# Heading\n\nA paragraph.\n\n- list item\n").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !body.contains("preview-disclaimer"),
+        "no disclaimer should appear for plain markdown without shortcodes/exec: {body}"
+    );
+    assert!(body.contains("<h1"), "heading should still render");
+    assert!(body.contains("<li>"), "list should still render");
+}
+
+#[tokio::test]
+async fn preview_disclaimer_counts_both_shortcodes_and_exec() {
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+    let content = "{{ youtube(id=\"abc\") }}\n\n```{bash}\necho hi\n```";
+    let (_, body) = post_body(&app, "/_render-markdown", content).await;
+    assert!(
+        body.contains("1 shortcode stubbed"),
+        "shortcode count: {body}"
+    );
+    assert!(
+        body.contains("1 executable code block"),
+        "exec count: {body}"
+    );
+}
+
+#[tokio::test]
+async fn preview_does_not_swallow_text_that_only_looks_like_a_shortcode() {
+    // A sequence like `{{ not_a_shortcode }}` (no parens) is NOT a shortcode
+    // per zorto-core's grammar. The stubber must not swallow it — better to
+    // pass it through as literal text than to silently delete a user's
+    // copy.
+    let tmp = TempDir::new().unwrap();
+    let app = test_app(&tmp);
+    let content = "Talking about {{ braces in prose }} here.";
+    let (_, body) = post_body(&app, "/_render-markdown", content).await;
+    assert!(
+        body.contains("braces in prose"),
+        "non-shortcode `{{{{ ... }}}}` must survive verbatim: {body}"
+    );
+    assert!(
+        !body.contains("preview-shortcode-stub"),
+        "no stub should be produced for braces that aren't a shortcode: {body}"
+    );
+}
+
 // ── New page form ──────────────────────────────────────────────────
 
 #[tokio::test]
