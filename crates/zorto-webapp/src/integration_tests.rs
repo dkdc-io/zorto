@@ -875,12 +875,19 @@ async fn preview_root_serves_index_with_livereload() {
     let tmp = TempDir::new().unwrap();
     let app = test_app(&tmp);
     let out = tmp.path().join("site/public");
-    std::fs::write(out.join("index.html"), "<html><body><h1>Home</h1></body></html>").unwrap();
+    std::fs::write(
+        out.join("index.html"),
+        "<html><body><h1>Home</h1></body></html>",
+    )
+    .unwrap();
 
     let (status, body) = get(&app, "/preview/").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("<h1>Home</h1>"));
-    assert!(body.contains("__livereload"), "livereload JS must be injected");
+    assert!(
+        body.contains("__livereload"),
+        "livereload JS must be injected"
+    );
 }
 
 #[tokio::test]

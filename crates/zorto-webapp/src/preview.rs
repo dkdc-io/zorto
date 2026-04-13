@@ -161,7 +161,10 @@ mod tests {
         let out = tmp.path().join("public");
         std::fs::create_dir_all(&out).unwrap();
         std::fs::write(out.join("style.css"), "body{}").unwrap();
-        assert_eq!(resolve_path(&out, "/style.css").unwrap(), out.join("style.css"));
+        assert_eq!(
+            resolve_path(&out, "/style.css").unwrap(),
+            out.join("style.css")
+        );
     }
 
     #[test]
