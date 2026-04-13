@@ -6,9 +6,9 @@ echo "Checking Rust formatting..."
 cargo fmt -- --check
 
 echo "Running clippy..."
-cargo clippy -- -D warnings
+cargo clippy --all-targets --all-features --workspace -- -D warnings
 
 echo "Running Rust tests..."
-cargo test
+cargo test --workspace
 
 echo "Rust checks passed!"
