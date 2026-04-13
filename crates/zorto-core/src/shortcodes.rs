@@ -1007,32 +1007,58 @@ fn builtin_cascade(args_str: &str) -> anyhow::Result<String> {
     Ok(html)
 }
 
-/// Built-in `slide_image` shortcode: absolutely positioned image for presentations.
+/// Built-in `slide_image` shortcode: image for presentations with optional
+/// absolute positioning, animation class, and opacity.
 ///
 /// Arguments:
 /// - `src` (required): image path or URL
 /// - `alt` (optional): alt text
-/// - `top`, `left`, `right`, `bottom` (optional): CSS position values
+/// - `top`, `left`, `right`, `bottom` (optional): CSS position values.
+///   If any is set → `position: absolute`. Otherwise the image renders as a
+///   centered block (useful for hero logos on title/thank-you slides).
 /// - `width`, `height` (optional): CSS size values
+/// - `class` (optional): space-separated CSS classes appended to `slide-image`
+///   (e.g. `class="logo-float"` for animation presets)
+/// - `opacity` (optional): CSS opacity value (e.g. `0.7`)
 fn builtin_slide_image(args_str: &str) -> anyhow::Result<String> {
     let args = parse_args(args_str);
     let src = args
         .get("src")
         .ok_or_else(|| anyhow::anyhow!("slide_image shortcode requires a `src` argument"))?;
     let alt = args.get("alt").map(|s| s.as_str()).unwrap_or("");
+    let extra_class = args.get("class").map(|s| s.as_str()).unwrap_or("");
 
-    let mut style_parts = vec!["position: absolute".to_string()];
-    for prop in &["top", "left", "right", "bottom", "width", "height"] {
+    let positioned = ["top", "left", "right", "bottom"]
+        .iter()
+        .any(|p| args.contains_key(*p));
+
+    let mut style_parts: Vec<String> = Vec::new();
+    if positioned {
+        style_parts.push("position: absolute".to_string());
+    } else {
+        style_parts.push("display: block".to_string());
+        style_parts.push("margin: 0 auto".to_string());
+    }
+    for prop in &[
+        "top", "left", "right", "bottom", "width", "height", "opacity",
+    ] {
         if let Some(val) = args.get(*prop) {
             style_parts.push(format!("{}: {}", prop, escape_html(val)));
         }
     }
 
+    let class_attr = if extra_class.is_empty() {
+        "slide-image".to_string()
+    } else {
+        format!("slide-image {}", escape_html(extra_class))
+    };
+
     Ok(format!(
-        r#"<img src="{}" alt="{}" style="{}" class="slide-image">"#,
+        r#"<img src="{}" alt="{}" style="{}" class="{}">"#,
         escape_html(src),
         escape_html(alt),
-        style_parts.join("; ")
+        style_parts.join("; "),
+        class_attr,
     ))
 }
 
