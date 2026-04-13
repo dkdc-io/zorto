@@ -813,7 +813,12 @@ fn render_markdown_content(
         let mut any_executed = false;
 
         for (idx, block) in exec_blocks.iter_mut().enumerate() {
-            let source_hash = cache::hash_source(&format!("{}:{}", block.language, block.source));
+            let source_hash = cache::block_cache_key(
+                &block.language,
+                &block.source,
+                block.file_ref.as_deref(),
+                &working_dir,
+            );
             let idx_key = idx.to_string();
 
             // Check cache for a hit
