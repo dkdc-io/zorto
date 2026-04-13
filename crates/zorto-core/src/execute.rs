@@ -174,8 +174,14 @@ pub(crate) fn activate_venv(py: pyo3::Python<'_>, site_root: &Path) -> pyo3::PyR
 const VIZ_DETECTION_CODE: &str = r#"
 import sys as _sys
 __zorto_internal_viz_output__ = []
-_pre = __zorto_internal_pre_vars__ if '__zorto_internal_pre_vars__' in dir() else set()
-_new_vars = {n for n in dir() if n not in _pre and not n.startswith('_')}
+_pre = __zorto_internal_pre_vars__ if '__zorto_internal_pre_vars__' in dir() else {}
+# Names bound (newly or rebound) by this code block.
+# Comparing id() of values catches both new names and existing names rebound
+# to a new object — __main__ is shared across all blocks in a build.
+_new_vars = {
+    _k for _k, _v in globals().items()
+    if not _k.startswith('_') and _pre.get(_k) != id(_v)
+}
 
 # matplotlib (also covers seaborn which uses matplotlib under the hood)
 if 'matplotlib' in _sys.modules or 'matplotlib.pyplot' in _sys.modules:
@@ -200,25 +206,38 @@ if 'plotly' in _sys.modules:
     try:
         import plotly.graph_objects as _go
         for _name in _new_vars:
-            _obj = locals().get(_name)
+            _obj = globals().get(_name)
             if _obj is not None and isinstance(_obj, _go.Figure):
                 __zorto_internal_viz_output__.append(('html', _obj.to_html(full_html=False, include_plotlyjs='cdn')))
     except Exception as _e:
         import sys; print(f'zorto: warning: plotly capture failed: {_e}', file=sys.stderr)
 
-# altair — only check variables created by THIS code block
+# altair — only check variables created by THIS code block.
+# to_html() returns a full HTML document which breaks embedding — build a
+# minimal vega-embed snippet instead (scripts loaded once per page by the
+# browser; duplicate <script> tags are no-ops).
 if 'altair' in _sys.modules:
     try:
-        import altair as _alt
+        import altair as _alt, json as _json, uuid as _uuid
         _alt_types = (_alt.Chart,)
         for _cls_name in ('LayerChart', 'HConcatChart', 'VConcatChart'):
             _cls = getattr(_alt, _cls_name, None)
             if _cls is not None:
                 _alt_types = _alt_types + (_cls,)
         for _name in _new_vars:
-            _obj = locals().get(_name)
+            _obj = globals().get(_name)
             if _obj is not None and isinstance(_obj, _alt_types):
-                __zorto_internal_viz_output__.append(('html', _obj.to_html()))
+                _vid = 'vega-' + _uuid.uuid4().hex
+                _spec = _obj.to_dict()
+                _html = (
+                    '<script src="https://cdn.jsdelivr.net/npm/vega@6"></script>'
+                    '<script src="https://cdn.jsdelivr.net/npm/vega-lite@6.1.0"></script>'
+                    '<script src="https://cdn.jsdelivr.net/npm/vega-embed@7"></script>'
+                    f'<div id="{_vid}"></div>'
+                    f'<script>vegaEmbed(document.getElementById("{_vid}"), '
+                    f'{_json.dumps(_spec)}, {{mode: "vega-lite"}});</script>'
+                )
+                __zorto_internal_viz_output__.append(('html', _html))
     except Exception as _e:
         import sys; print(f'zorto: warning: altair capture failed: {_e}', file=sys.stderr)
 "#;
@@ -262,8 +281,13 @@ fn execute_python(
             let os = py.import("os")?;
             os.call_method1("chdir", (working_dir.to_string_lossy().as_ref(),))?;
 
-            // Snapshot __main__ namespace before user code runs
-            let snapshot_code = CString::new("__zorto_internal_pre_vars__ = set(dir())")?;
+            // Snapshot __main__ namespace before user code runs.
+            // We capture (name -> id(value)) so we can detect both new names
+            // AND rebound names, since __main__ persists across all blocks/posts
+            // in a single build (names from prior blocks leak in).
+            let snapshot_code = CString::new(
+                "__zorto_internal_pre_vars__ = {_k: id(_v) for _k, _v in globals().items()}",
+            )?;
             let _ = py.run(snapshot_code.as_c_str(), None, None);
 
             // Execute user code
