@@ -166,14 +166,33 @@ pub async fn new_form(
         _ => "",
     };
 
+    // The `?then=page` variant is the inline-create path from the New Page
+    // form: on success we return the user to /pages/new with the freshly
+    // created section preselected, rather than dropping them into the section
+    // editor. Carry the flag through the form as a hidden input.
+    let (then_input, back_target) = if params.then.as_deref() == Some("page") {
+        (
+            r#"<input type="hidden" name="then" value="page">"#,
+            "/pages/new",
+        )
+    } else {
+        ("", "/sections")
+    };
+    let back_label = if back_target == "/pages/new" {
+        "Back to New Page"
+    } else {
+        "Back to Sections"
+    };
+
     let body = format!(
         r#"{flash_html}<div class="toolbar">
   <h2>New Section</h2>
   <div class="toolbar-right">
-    <a href="/sections" class="btn">Back to Sections</a>
+    <a href="{back_target}" class="btn">{back_label}</a>
   </div>
 </div>
 <form method="POST" action="/sections/new">
+  {then_input}
   <div class="card">
     <div class="form-row">
       <div class="form-group">
@@ -221,6 +240,11 @@ pub async fn new_form(
 pub struct NewFormQuery {
     #[serde(default)]
     error: Option<String>,
+    /// Continuation hint carried from the caller: `then=page` means the user
+    /// arrived from the New Page form and should be returned there, with the
+    /// new section pre-selected, after create succeeds.
+    #[serde(default)]
+    then: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -237,9 +261,21 @@ pub async fn create(
     State(state): State<Arc<AppState>>,
     axum::Form(form): axum::Form<NewSectionForm>,
 ) -> axum::response::Response {
+    // Keep `?then=page` plumbed across every error redirect so the user stays
+    // on the inline-create path rather than getting kicked to the bare
+    // new-section form with no return breadcrumb.
+    let suffix = if form.then.as_deref() == Some("page") {
+        "&then=page"
+    } else {
+        ""
+    };
+    let error_redirect = |code: &str| {
+        Redirect::to(&format!("/sections/new?error={code}{suffix}")).into_response()
+    };
+
     let title = form.title.trim().to_string();
     if title.is_empty() {
-        return Redirect::to("/sections/new?error=title_required").into_response();
+        return error_redirect("title_required");
     }
 
     // Derive slug if the user left the field blank.
@@ -251,7 +287,7 @@ pub async fn create(
     };
 
     if !slug_is_safe(&slug) {
-        return Redirect::to("/sections/new?error=slug_invalid").into_response();
+        return error_redirect("slug_invalid");
     }
 
     let content_dir = state.root.join("content");
@@ -262,13 +298,13 @@ pub async fn create(
     // `..` / `/`, but we defence-in-depth through validate_path on the target
     // directory's parent.
     if validate_path(&content_dir, &slug).is_err() {
-        return Redirect::to("/sections/new?error=slug_invalid").into_response();
+        return error_redirect("slug_invalid");
     }
 
     let section_dir = content_dir.join(&slug);
     let index_path = section_dir.join("_index.md");
     if index_path.exists() || section_dir.exists() {
-        return Redirect::to("/sections/new?error=slug_exists").into_response();
+        return error_redirect("slug_exists");
     }
 
     if let Err(e) = std::fs::create_dir_all(&section_dir) {
@@ -311,6 +347,12 @@ pub async fn create(
         eprintln!("Section created but site rebuild failed: {e}");
     }
 
+    // Inline-create path: return to the New Page form with the new section
+    // preselected in the Section dropdown.
+    if form.then.as_deref() == Some("page") {
+        return Redirect::to(&format!("/pages/new?preselect={slug}")).into_response();
+    }
+
     Redirect::to(&format!("/sections/{slug}/_index.md?created=1")).into_response()
 }
 
@@ -325,6 +367,8 @@ pub struct NewSectionForm {
     sort_by: String,
     #[serde(default)]
     paginate_by: String,
+    #[serde(default)]
+    then: Option<String>,
 }
 
 pub async fn delete(
