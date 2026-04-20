@@ -254,10 +254,7 @@ pub async fn serve(cfg: &ServeConfig<'_>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn preview_open_url<'a>(
-    base_url: &str,
-    sections: impl Iterator<Item = &'a Section>,
-) -> String {
+fn preview_open_url<'a>(base_url: &str, sections: impl Iterator<Item = &'a Section>) -> String {
     let presentation_path = sections
         .filter(|section| section.path != "/")
         .filter(|section| section.template.as_deref() == Some("presentation.html"))

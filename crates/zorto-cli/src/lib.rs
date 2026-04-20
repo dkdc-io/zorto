@@ -3,11 +3,11 @@
 //! This crate provides the CLI binary and the `run` entry point used by
 //! the PyO3 Python bindings.
 
+pub use crate::cli::CliExit;
 pub use zorto_core as core;
 pub use zorto_core::config;
 pub use zorto_core::content;
 pub use zorto_core::site;
-pub use crate::cli::CliExit;
 
 mod cli;
 pub(crate) mod serve;

@@ -295,10 +295,7 @@ where
             let demo_dir = tempfile::tempdir().context("failed to create demo workspace")?;
             create_site_with_defaults(demo_dir.path(), "presentation", Some("Demo Deck"))?;
             let output = resolve_output(demo_dir.path(), output);
-            println!(
-                "Scaffolding demo deck at {}...",
-                demo_dir.path().display()
-            );
+            println!("Scaffolding demo deck at {}...", demo_dir.path().display());
             let cfg = serve::ServeConfig {
                 root: demo_dir.path(),
                 output_dir: &output,
@@ -406,7 +403,10 @@ fn atty_stdin() -> bool {
     std::io::stdin().is_terminal()
 }
 
-fn ensure_site_exists(root: &std::path::Path, display_root: &std::path::Path) -> anyhow::Result<()> {
+fn ensure_site_exists(
+    root: &std::path::Path,
+    display_root: &std::path::Path,
+) -> anyhow::Result<()> {
     if root.join("config.toml").exists() {
         return Ok(());
     }
@@ -467,13 +467,7 @@ fn create_site_with_defaults(
     let title = title_override
         .map(std::borrow::ToOwned::to_owned)
         .unwrap_or_else(|| default_site_title(target));
-    templates::customize_config(
-        target,
-        &title,
-        DEFAULT_BASE_URL,
-        Some("zorto"),
-        None,
-    )?;
+    templates::customize_config(target, &title, DEFAULT_BASE_URL, Some("zorto"), None)?;
     Ok(())
 }
 
