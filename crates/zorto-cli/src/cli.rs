@@ -262,8 +262,21 @@ where
             if let Some(url) = base_url {
                 site.set_base_url(url);
             }
+            let started = std::time::Instant::now();
             site.build()?;
-            println!("Site built to {}", display_output.display());
+            let elapsed = started.elapsed();
+            // site.pages / site.sections are mutated during build (drafts dropped,
+            // no-render sections pruned), so counting after build reflects what
+            // actually got rendered.
+            let pages = site.pages.len();
+            let sections = site.sections.len();
+            println!(
+                "Built {pages} {} and {sections} {} in {} to {}",
+                if pages == 1 { "page" } else { "pages" },
+                if sections == 1 { "section" } else { "sections" },
+                format_duration(elapsed),
+                display_output.display(),
+            );
         }
         Commands::Preview {
             output,
@@ -363,6 +376,19 @@ where
     }
 
     Ok(())
+}
+
+/// Format a build duration for the `Built …` summary line.
+///
+/// Sub-second durations render as `123ms` (integer); anything >= 1s as
+/// `1.23s` (two decimals). Matches the cadence Hugo/Zola print.
+fn format_duration(d: std::time::Duration) -> String {
+    let secs = d.as_secs_f64();
+    if secs < 1.0 {
+        format!("{}ms", d.as_millis())
+    } else {
+        format!("{secs:.2}s")
+    }
 }
 
 /// Resolve an output path relative to the site root.
@@ -840,6 +866,61 @@ mod tests {
         assert!(
             !DEFAULT_BASE_URL.contains("localhost"),
             "DEFAULT_BASE_URL should not be a localhost URL: {DEFAULT_BASE_URL}"
+        );
+    }
+
+    #[test]
+    fn format_duration_sub_second_uses_ms() {
+        assert_eq!(format_duration(std::time::Duration::from_millis(0)), "0ms");
+        assert_eq!(
+            format_duration(std::time::Duration::from_millis(123)),
+            "123ms"
+        );
+        assert_eq!(
+            format_duration(std::time::Duration::from_millis(999)),
+            "999ms"
+        );
+    }
+
+    #[test]
+    fn format_duration_second_and_above_uses_decimal_s() {
+        assert_eq!(
+            format_duration(std::time::Duration::from_millis(1000)),
+            "1.00s"
+        );
+        assert_eq!(
+            format_duration(std::time::Duration::from_millis(1234)),
+            "1.23s"
+        );
+        assert_eq!(
+            format_duration(std::time::Duration::from_secs_f64(12.5)),
+            "12.50s"
+        );
+    }
+
+    #[test]
+    fn error_chain_flat_display_surfaces_inner_cause() {
+        // Broken frontmatter: content.rs attaches `.context("in {file}")` over
+        // the toml parse error. The binary uses `{e:#}` to flatten the chain,
+        // so callers see both frames in one line. Lock that in.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(tmp.path().join("content")).unwrap();
+        std::fs::write(
+            tmp.path().join("config.toml"),
+            "title = \"t\"\nbase_url = \"https://example.com\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.path().join("content/_index.md"),
+            "+++\ntitle = [broken]\n[invalid toml\n+++\nbody\n",
+        )
+        .unwrap();
+        let err = run(["zorto", "--root", tmp.path().to_str().unwrap(), "build"]).unwrap_err();
+        let flat = format!("{err:#}");
+        assert!(flat.contains("_index.md"), "missing file context: {flat}");
+        assert!(
+            flat.to_lowercase().contains("toml") || flat.contains("parse"),
+            "inner toml parse cause not surfaced by `{{:#}}`: {flat}"
         );
     }
 }
