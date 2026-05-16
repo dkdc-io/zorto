@@ -3,7 +3,7 @@ database_url = "/data/meta.ddb"
 database_file = "meta.ddb"
 database_schema = "meta"
 duckdb_module_url = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm"
-plotly_url = "/vendor/plotly/plotly-3.4.0.min.js"
+plotly_url = "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@3.4.0/plotly.min.js"
 load_label = "Load analytics"
 loaded_label = "analytics loaded"
 
@@ -64,15 +64,33 @@ id = "commit-activity"
 view = "overview"
 kind = "chart"
 renderer = "commitActivity"
+query_id = "daily"
 title = "Commit activity"
 description = "Local history, line movement, and working tree pulse."
 wide = true
+
+[[panels]]
+id = "recent-commits"
+view = "overview"
+kind = "table"
+renderer = "table"
+query_id = "recent_commits"
+title = "Recent commits"
+columns = [
+  { field = "short_sha", label = "SHA", format = "code" },
+  { field = "committed_at", label = "Date", format = "date" },
+  { field = "subject", label = "Subject" },
+  { field = "file_count", label = "Files", format = "number" },
+  { field = "additions", label = "+", format = "number" },
+  { field = "deletions", label = "-", format = "number" },
+]
 
 [[panels]]
 id = "build-duration"
 view = "overview"
 kind = "chart"
 renderer = "buildDuration"
+query_id = "builds"
 title = "Build duration"
 description = "Recorded metadata generation runs."
 
@@ -80,15 +98,21 @@ description = "Recorded metadata generation runs."
 id = "db-tables"
 view = "overview"
 kind = "table"
-renderer = "dbTables"
+renderer = "table"
+query_id = "db_tables"
 title = "Public data inventory"
 description = "Tables stored inside meta.ddb."
+columns = [
+  { field = "table_name", label = "Table", format = "code" },
+  { field = "rows", label = "Rows", format = "number" },
+]
 
 [[panels]]
 id = "content-freshness"
 view = "content"
 kind = "chart"
 renderer = "contentFreshness"
+query_id = "freshness"
 title = "Content freshness"
 description = "Tracked docs and pages grouped by last commit age."
 
@@ -97,6 +121,7 @@ id = "top-terms"
 view = "content"
 kind = "chart"
 renderer = "topTerms"
+query_id = "terms"
 title = "Top terms"
 description = "Search-shaped language from public docs and content."
 
@@ -104,21 +129,35 @@ description = "Search-shaped language from public docs and content."
 id = "content-files"
 view = "content"
 kind = "table"
-renderer = "contentFiles"
+renderer = "table"
+query_id = "content_files"
 title = "Largest content files"
+columns = [
+  { field = "path", label = "Path", format = "code" },
+  { field = "kind", label = "Kind" },
+  { field = "word_count", label = "Words", format = "number" },
+  { field = "last_commit_at", label = "Updated", format = "date" },
+]
 
 [[panels]]
 id = "links"
 view = "content"
 kind = "table"
-renderer = "links"
+renderer = "table"
+query_id = "links"
 title = "Local link checks"
+columns = [
+  { field = "source_path", label = "Source", format = "code" },
+  { field = "target_path", fallback_field = "target", label = "Target", format = "code" },
+  { field = "target_exists", label = "Status", format = "ok_missing" },
+]
 
 [[panels]]
 id = "output-footprint"
 view = "build"
 kind = "chart"
 renderer = "outputFootprint"
+query_id = "outputs_by_extension"
 title = "Output footprint"
 description = "Generated files by kind and extension."
 
@@ -127,6 +166,7 @@ id = "output-mix"
 view = "build"
 kind = "chart"
 renderer = "outputMix"
+query_id = "outputs_by_kind"
 title = "Output mix"
 description = "Bytes by generated artifact kind."
 
@@ -134,15 +174,45 @@ description = "Bytes by generated artifact kind."
 id = "outputs"
 view = "build"
 kind = "table"
-renderer = "outputs"
+renderer = "table"
+query_id = "outputs"
 title = "Largest generated outputs"
+columns = [
+  { field = "path", label = "Path", format = "code" },
+  { field = "kind", label = "Kind" },
+  { field = "extension", label = "Extension" },
+  { field = "bytes", label = "Bytes", format = "bytes" },
+]
 
 [[panels]]
 id = "packages"
 view = "build"
 kind = "table"
-renderer = "packages"
+renderer = "table"
+query_id = "packages"
 title = "Packages"
+columns = [
+  { field = "name", label = "Name" },
+  { field = "version", label = "Version", format = "code" },
+  { field = "ecosystem", label = "Ecosystem" },
+  { field = "manifest_path", label = "Manifest", format = "code" },
+]
+
+[[panels]]
+id = "pipeline-steps"
+view = "data"
+kind = "table"
+renderer = "table"
+query_id = "pipeline_steps"
+title = "Pipeline receipts"
+description = "Every step that produced this checked-in database."
+columns = [
+  { field = "step_name", label = "Step", format = "code" },
+  { field = "step_kind", label = "Kind" },
+  { field = "status", label = "Status" },
+  { field = "duration_ms", label = "Duration", format = "duration" },
+  { field = "output_count", label = "Rows", format = "number" },
+]
 
 [[panels]]
 id = "query-console"
@@ -151,6 +221,197 @@ kind = "query"
 renderer = "queryConsole"
 title = "Readonly SQL console"
 description = "Saved queries run against the attached meta.main schema."
+
+[[queries]]
+id = "info"
+sql = "SELECT * FROM meta.main.meta_info LIMIT 1"
+
+[[queries]]
+id = "snapshot"
+sql = "SELECT * FROM meta.main.repo_snapshot LIMIT 1"
+
+[[queries]]
+id = "totals"
+sql = """
+SELECT
+  (SELECT count(*) FROM meta.main.commits) AS commits,
+  (SELECT count(*) FROM meta.main.content_files) AS content_files,
+  (SELECT coalesce(sum(word_count), 0) FROM meta.main.content_files) AS words,
+  (SELECT CAST(coalesce(sum(bytes), 0) AS DOUBLE) FROM meta.main.build_outputs) AS output_bytes,
+  (SELECT duration_ms FROM meta.main.build_runs ORDER BY finished_at DESC LIMIT 1) AS latest_build_ms,
+  (SELECT count(*) FROM meta.main.content_links WHERE target_exists = false) AS broken_links,
+  (SELECT count(*) FROM meta.main.content_terms) AS terms
+"""
+
+[[queries]]
+id = "health"
+sql = """
+SELECT
+  count(*) FILTER (WHERE kind IN ('docs', 'content')) AS authored_files,
+  count(*) FILTER (WHERE kind IN ('docs', 'content') AND title IS NULL) AS untitled_files,
+  count(*) FILTER (WHERE kind IN ('docs', 'content') AND word_count = 0) AS empty_files,
+  (SELECT count(*) FROM meta.main.content_links) AS local_links,
+  (SELECT count(*) FROM meta.main.content_links WHERE target_exists = false) AS broken_links,
+  (SELECT count(*) FROM meta.main.content_terms) AS indexed_terms
+FROM meta.main.content_files
+"""
+
+[[queries]]
+id = "daily"
+sql = """
+SELECT day, commit_count, additions, deletions
+FROM meta.main.commit_daily
+ORDER BY day
+"""
+
+[[queries]]
+id = "freshness"
+sql = """
+WITH generated AS (
+  SELECT CAST(generated_at AS DATE) AS generated_day
+  FROM meta.main.meta_info
+  LIMIT 1
+),
+aged AS (
+  SELECT
+    kind,
+    CASE
+      WHEN last_commit_at IS NULL THEN 'unknown'
+      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 7 THEN '0-7d'
+      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 30 THEN '8-30d'
+      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 90 THEN '31-90d'
+      ELSE '90d+'
+    END AS age_bucket,
+    CASE
+      WHEN last_commit_at IS NULL THEN 5
+      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 7 THEN 1
+      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 30 THEN 2
+      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 90 THEN 3
+      ELSE 4
+    END AS age_order,
+    word_count
+  FROM meta.main.content_files, generated
+  WHERE kind IN ('docs', 'content')
+)
+SELECT kind, age_bucket, min(age_order) AS age_order, count(*) AS file_count, coalesce(sum(word_count), 0) AS words
+FROM aged
+GROUP BY kind, age_bucket
+ORDER BY age_order, kind
+"""
+
+[[queries]]
+id = "terms"
+sql = """
+SELECT term, file_count, occurrence_count
+FROM meta.main.content_terms
+ORDER BY occurrence_count DESC, file_count DESC
+LIMIT 20
+"""
+
+[[queries]]
+id = "outputs_by_kind"
+sql = """
+SELECT kind, count(*) AS file_count, CAST(sum(bytes) AS DOUBLE) AS bytes
+FROM meta.main.build_outputs
+GROUP BY kind
+ORDER BY bytes DESC
+"""
+
+[[queries]]
+id = "outputs_by_extension"
+sql = """
+SELECT kind, extension, count(*) AS file_count, CAST(sum(bytes) AS DOUBLE) AS bytes
+FROM meta.main.build_outputs
+GROUP BY kind, extension
+ORDER BY kind, bytes DESC
+"""
+
+[[queries]]
+id = "builds"
+sql = """
+SELECT started_at, finished_at, duration_ms, status
+FROM meta.main.build_runs
+ORDER BY started_at
+"""
+
+[[queries]]
+id = "build_runs"
+sql = """
+SELECT started_at, finished_at, duration_ms, status, zorto_version, command
+FROM meta.main.build_runs
+ORDER BY finished_at DESC
+LIMIT 2
+"""
+
+[[queries]]
+id = "recent_commits"
+sql = """
+SELECT short_sha, committed_at, subject, file_count, additions, deletions
+FROM meta.main.commits
+ORDER BY committed_at DESC
+LIMIT 8
+"""
+
+[[queries]]
+id = "content_files"
+sql = """
+SELECT path, kind, title, word_count, bytes, last_commit_at
+FROM meta.main.content_files
+WHERE kind IN ('docs', 'content')
+ORDER BY word_count DESC, bytes DESC
+LIMIT 14
+"""
+
+[[queries]]
+id = "links"
+sql = """
+SELECT source_path, target, target_path, link_kind, target_exists
+FROM meta.main.content_links
+ORDER BY target_exists ASC NULLS LAST, source_path
+LIMIT 14
+"""
+
+[[queries]]
+id = "outputs"
+sql = """
+SELECT path, kind, extension, CAST(bytes AS DOUBLE) AS bytes
+FROM meta.main.build_outputs
+ORDER BY bytes DESC
+LIMIT 14
+"""
+
+[[queries]]
+id = "packages"
+sql = """
+SELECT ecosystem, name, version, manifest_path
+FROM meta.main.packages
+ORDER BY ecosystem, name
+"""
+
+[[queries]]
+id = "db_tables"
+sql = """
+SELECT 'meta_info' AS table_name, count(*) AS rows FROM meta.main.meta_info
+UNION ALL SELECT 'repo_snapshot', count(*) FROM meta.main.repo_snapshot
+UNION ALL SELECT 'commits', count(*) FROM meta.main.commits
+UNION ALL SELECT 'commit_daily', count(*) FROM meta.main.commit_daily
+UNION ALL SELECT 'packages', count(*) FROM meta.main.packages
+UNION ALL SELECT 'content_files', count(*) FROM meta.main.content_files
+UNION ALL SELECT 'content_terms', count(*) FROM meta.main.content_terms
+UNION ALL SELECT 'content_links', count(*) FROM meta.main.content_links
+UNION ALL SELECT 'build_runs', count(*) FROM meta.main.build_runs
+UNION ALL SELECT 'build_outputs', count(*) FROM meta.main.build_outputs
+UNION ALL SELECT 'pipeline_steps', count(*) FROM meta.main.pipeline_steps
+ORDER BY rows DESC
+"""
+
+[[queries]]
+id = "pipeline_steps"
+sql = """
+SELECT step_name, step_kind, status, duration_ms, output_count, command, detail
+FROM meta.main.pipeline_steps
+ORDER BY started_at
+"""
 
 [[query_presets]]
 id = "catalog"
@@ -166,6 +427,7 @@ UNION ALL SELECT 'content_terms', count(*) FROM meta.main.content_terms
 UNION ALL SELECT 'content_links', count(*) FROM meta.main.content_links
 UNION ALL SELECT 'build_runs', count(*) FROM meta.main.build_runs
 UNION ALL SELECT 'build_outputs', count(*) FROM meta.main.build_outputs
+UNION ALL SELECT 'pipeline_steps', count(*) FROM meta.main.pipeline_steps
 ORDER BY rows DESC
 """
 

@@ -18,6 +18,7 @@ Committed work so far:
 
 - `b3c7866` adds the zorto.dev analytics prototype.
 - `051794b` moves dashboard intent into `website/data/analytics.toml` and emits `/data/analytics-dashboard.json`.
+- `841715b` documents this generalization plan.
 
 The prototype proves the important runtime shape:
 
@@ -27,12 +28,20 @@ The prototype proves the important runtime shape:
 - The dashboard queries local browser-attached DuckDB data.
 - The checked-in database avoids private paths, emails, env vars, tokens, and untracked filenames.
 
+Implemented after this checkpoint:
+
+- `website/data/meta.toml` now owns the website-local metadata pipeline contract.
+- `meta.ddb` now includes `pipeline_steps` receipts for the generation path.
+- `website/data/analytics.toml` owns dashboard queries, panel query bindings, and table columns.
+- `website/static/js/data-app-runtime.js` holds reusable static data-app machinery, with `analytics-dashboard.js` acting as the analytics adapter.
+- Plotly and DuckDB-Wasm are both pinned CDN-loaded runtime assets. Vendoring them should be a deliberate packaging decision later, not an accidental split policy.
+
 ## Why this is not general enough yet
 
 The pattern is promising, but the reusable product has not been extracted.
 
-- `website/pipelines/build_meta.py` still owns too much repo-specific pipeline meaning.
-- The dashboard manifest owns labels and saved queries, but table/chart bindings are still partly hardcoded in JavaScript.
+- `website/pipelines/build_meta.py` still owns repo-specific collectors and table materialization logic.
+- The dashboard manifest owns queries and table bindings, but chart renderers are still named JavaScript functions.
 - There is no Zorto-native `[data]` config, pipeline runner, receipts model, or dashboard scaffold.
 - Search still writes `search.db` separately instead of joining the `.ddb` direction.
 - DuckDB-Wasm versioning and loading are still page-specific.
@@ -42,7 +51,7 @@ The pattern is promising, but the reusable product has not been extracted.
 
 ### 1. Move pipeline intent into TOML
 
-Add a website-local pipeline manifest, probably `website/data/meta.toml`.
+Done for the website prototype: `website/data/meta.toml`.
 
 It should describe:
 
@@ -57,7 +66,7 @@ Keep the executor as the self-contained `uv` script for now. The point is to mov
 
 ### 2. Add build receipts
 
-Write a receipt table into `meta.ddb`, for example `pipeline_steps`.
+Done for the website prototype: `pipeline_steps`.
 
 Useful fields:
 
@@ -75,20 +84,19 @@ The dashboard should show these receipts so the data pipeline is inspectable.
 
 ### 3. Make dashboard rendering more generic
 
-Extend `website/data/analytics.toml` so panels can declare more of their binding:
+Partly done. `website/data/analytics.toml` now declares:
 
 - query id
 - renderer
 - table columns
-- chart x/y/color fields
 - empty states
 - formatting hints
 
-Keep named renderers for anything too custom. Do not invent a full chart grammar yet.
+Still intentionally deferred: chart x/y/color fields. Keep named renderers for anything too custom. Do not invent a full chart grammar yet.
 
 ### 4. Extract a small reusable runtime
 
-Rename the runtime toward a generic website-local data app module, for example:
+Done for the website prototype:
 
 - `website/static/js/data-app-runtime.js`
 - `website/static/js/analytics-dashboard.js` as a thin analytics-specific adapter
@@ -149,7 +157,7 @@ Before updating live zorto.dev:
 
 - Regenerate `website/static/data/meta.ddb`.
 - Regenerate `website/static/data/analytics-dashboard.json`.
-- Confirm Plotly vendor asset is present.
+- Confirm the pinned Plotly and DuckDB-Wasm CDN assets load.
 - Confirm `/analytics/` works from local preview.
 - Confirm the shipped `.ddb` contains no private data.
 - Confirm CDN-loaded DuckDB-Wasm version can read the generated database.
@@ -162,4 +170,5 @@ Before updating live zorto.dev:
 - Should dashboards be configured from section frontmatter, `data/*.toml`, or both?
 - Should the first generalized runner invoke `duckdb` CLI, Python `duckdb`, or support either?
 - How much chart configuration is useful before it becomes a bad chart DSL?
+- What should the supported runtime-asset default be: CDN, vendored, or user-controlled per site?
 - When should search move from SQLite `search.db` into DuckDB?

@@ -56,6 +56,17 @@
           </div>
           <div class="analytics-chart" data-chart="build-duration"></div>
         </section>
+        <section class="analytics-panel analytics-panel--wide" data-panel="recent-commits">
+          <div class="analytics-panel__header">
+            <h2>Recent commits</h2>
+          </div>
+          <div class="analytics-table-wrap">
+            <table class="analytics-table">
+              <thead data-table-head="recent-commits"><tr><th>SHA</th><th>Date</th><th>Subject</th><th>Files</th><th>+</th><th>-</th></tr></thead>
+              <tbody data-table="recent-commits"></tbody>
+            </table>
+          </div>
+        </section>
         <section class="analytics-panel" data-panel="db-tables">
           <div class="analytics-panel__header">
             <h2>Public data inventory</h2>
@@ -63,7 +74,7 @@
           </div>
           <div class="analytics-table-wrap">
             <table class="analytics-table">
-              <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+              <thead data-table-head="db-tables"><tr><th>Table</th><th>Rows</th></tr></thead>
               <tbody data-table="db-tables"></tbody>
             </table>
           </div>
@@ -95,7 +106,7 @@
           </div>
           <div class="analytics-table-wrap">
             <table class="analytics-table">
-              <thead><tr><th>Path</th><th>Kind</th><th>Words</th><th>Updated</th></tr></thead>
+              <thead data-table-head="content-files"><tr><th>Path</th><th>Kind</th><th>Words</th><th>Updated</th></tr></thead>
               <tbody data-table="content-files"></tbody>
             </table>
           </div>
@@ -106,7 +117,7 @@
           </div>
           <div class="analytics-table-wrap">
             <table class="analytics-table">
-              <thead><tr><th>Source</th><th>Target</th><th>Status</th></tr></thead>
+              <thead data-table-head="links"><tr><th>Source</th><th>Target</th><th>Status</th></tr></thead>
               <tbody data-table="links"></tbody>
             </table>
           </div>
@@ -138,7 +149,7 @@
           </div>
           <div class="analytics-table-wrap">
             <table class="analytics-table">
-              <thead><tr><th>Path</th><th>Kind</th><th>Extension</th><th>Bytes</th></tr></thead>
+              <thead data-table-head="outputs"><tr><th>Path</th><th>Kind</th><th>Extension</th><th>Bytes</th></tr></thead>
               <tbody data-table="outputs"></tbody>
             </table>
           </div>
@@ -149,7 +160,7 @@
           </div>
           <div class="analytics-table-wrap">
             <table class="analytics-table">
-              <thead><tr><th>Name</th><th>Version</th><th>Ecosystem</th><th>Manifest</th></tr></thead>
+              <thead data-table-head="packages"><tr><th>Name</th><th>Version</th><th>Ecosystem</th><th>Manifest</th></tr></thead>
               <tbody data-table="packages"></tbody>
             </table>
           </div>
@@ -158,6 +169,19 @@
     </section>
 
     <section class="analytics-view" data-view="data" hidden>
+      <section class="analytics-table-panel" data-panel="pipeline-steps">
+        <div class="analytics-panel__header">
+          <h2>Pipeline receipts</h2>
+          <p>Every step that produced this checked-in database.</p>
+        </div>
+        <div class="analytics-table-wrap">
+          <table class="analytics-table">
+            <thead data-table-head="pipeline-steps"><tr><th>Step</th><th>Kind</th><th>Status</th><th>Duration</th><th>Rows</th></tr></thead>
+            <tbody data-table="pipeline-steps"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="analytics-query" data-panel="query-console">
         <div class="analytics-panel__header">
           <h2>Readonly SQL console</h2>

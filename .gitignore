@@ -10,6 +10,7 @@ __pycache__/
 TODO.md
 !website/data/
 !website/data/analytics.toml
+!website/data/meta.toml
 !website/static/data/
 !website/static/data/meta.ddb
 !website/static/data/analytics-dashboard.json

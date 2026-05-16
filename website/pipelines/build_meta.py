@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 import hashlib
 import importlib
 import json
@@ -27,19 +28,14 @@ from urllib.parse import unquote, urlsplit
 
 duckdb: Any = importlib.import_module("duckdb")
 
-SCHEMA_VERSION = 2
-GENERATOR_VERSION = "0.3.0"
-COMMIT_LIMIT = 250
-TERM_LIMIT = 500
-CONTENT_PREFIXES = ("docs/", "website/content/", "website/static/")
-CONTENT_EXCLUDES = (
-    "website/static/data/meta.ddb",
-    "website/static/data/meta.ddb.wal",
-    "website/static/data/analytics-dashboard.json",
-    "website/static/vendor/plotly/plotly-3.4.0.min.js",
+DEFAULT_SCHEMA_VERSION = 3
+DEFAULT_GENERATOR_VERSION = "0.4.0"
+DEFAULT_PIPELINE_MANIFEST_PATH = "data/meta.toml"
+DEFAULT_CONTENT_PREFIXES = (
+    "docs/",
+    "website/content/",
+    "website/static/",
 )
-DASHBOARD_MANIFEST_PATH = "data/analytics.toml"
-DASHBOARD_MANIFEST_OUTPUT_PATH = "static/data/analytics-dashboard.json"
 STOP_WORDS = {
     "about",
     "after",
@@ -162,22 +158,136 @@ class ContentFile:
     text: str
 
 
+@dataclass
+class PipelineConfig:
+    schema_version: int
+    generator_version: str
+    database_path: Path
+    build_output_dir: Path
+    commit_limit: int
+    term_limit: int
+    content_prefixes: tuple[str, ...]
+    content_excludes: tuple[str, ...]
+    dashboard_manifest_path: Path
+    dashboard_manifest_output_path: Path
+    zorto_command: list[str]
+    public_command: str
+    forbidden_regex: tuple[str, ...]
+
+
+@dataclass
+class PipelineStep:
+    step_name: str
+    step_kind: str
+    started_at: str
+    finished_at: str
+    duration_ms: int
+    status: str
+    input_count: int | None = None
+    output_count: int | None = None
+    command: str | None = None
+    detail: str | None = None
+    warning: str | None = None
+    error: str | None = None
+
+
+class PipelineRecorder:
+    def __init__(self) -> None:
+        self.steps: list[PipelineStep] = []
+
+    def run(
+        self,
+        step_name: str,
+        step_kind: str,
+        fn: Callable[[], Any],
+        *,
+        input_count: int | None = None,
+        output_count: Callable[[Any], int | None] | None = None,
+        command: str | None = None,
+        detail: str | None = None,
+    ) -> Any:
+        started = now_iso()
+        started_monotonic = time.monotonic()
+        status = "success"
+        error = None
+        result: Any
+        try:
+            result = fn()
+        except Exception as exc:
+            status = "error"
+            error = str(exc)
+            raise
+        finally:
+            finished = now_iso()
+            duration_ms = round((time.monotonic() - started_monotonic) * 1000)
+            rows = None
+            if (
+                status == "success"
+                and output_count is not None
+                and "result" in locals()
+            ):
+                rows = output_count(result)
+            self.steps.append(
+                PipelineStep(
+                    step_name=step_name,
+                    step_kind=step_kind,
+                    started_at=started,
+                    finished_at=finished,
+                    duration_ms=duration_ms,
+                    status=status,
+                    input_count=input_count,
+                    output_count=rows,
+                    command=command,
+                    detail=detail,
+                    error=error,
+                )
+            )
+        return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate zorto.dev metadata database")
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--website-dir", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--build-output", type=Path)
     args = parser.parse_args()
 
     repo_root = args.repo_root.resolve()
     website_dir = args.website_dir.resolve()
-    output = args.output or website_dir / "static" / "data" / "meta.ddb"
-    build_output = args.build_output or repo_root / "target" / "zorto-meta-public"
+    config = load_pipeline_config(
+        repo_root,
+        website_dir,
+        args.manifest or website_dir / DEFAULT_PIPELINE_MANIFEST_PATH,
+    )
+    output = (args.output or config.database_path).resolve()
+    build_output = (args.build_output or config.build_output_dir).resolve()
+    config.database_path = output
+    config.build_output_dir = build_output
 
-    previous_runs = read_previous_build_runs(output)
-    build_run = run_zorto_build(repo_root, website_dir, build_output)
-    build_outputs = collect_build_outputs(build_output)
+    recorder = PipelineRecorder()
+    previous_runs: list[BuildRun] = recorder.run(
+        "read_previous_build_runs",
+        "duckdb",
+        lambda: read_previous_build_runs(output),
+        output_count=len,
+        detail=rel(repo_root, output) if output.exists() else "no previous database",
+    )
+    build_run: BuildRun = recorder.run(
+        "run_zorto_build",
+        "command",
+        lambda: run_zorto_build(repo_root, website_dir, config),
+        output_count=lambda _run: 1,
+        command=render_public_command(repo_root, config),
+    )
+    build_outputs: list[tuple[str, int, str, str, str]] = recorder.run(
+        "collect_build_outputs",
+        "filesystem",
+        lambda: collect_build_outputs(build_output),
+        output_count=len,
+        detail=rel(repo_root, build_output),
+    )
 
     tmp = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
     cleanup_duckdb_files(tmp)
@@ -185,8 +295,23 @@ def main() -> int:
 
     con = duckdb.connect(str(tmp))
     try:
-        write_database(con, repo_root, previous_runs + [build_run], build_outputs)
+        write_database(
+            con,
+            repo_root,
+            config,
+            recorder,
+            previous_runs + [build_run],
+            build_outputs,
+        )
         con.close()
+        recorder.run(
+            "privacy_scan",
+            "guard",
+            lambda: run_privacy_checks(repo_root, tmp, config),
+            output_count=lambda findings: 0 if findings is None else len(findings),
+            detail=rel(repo_root, output),
+        )
+        refresh_pipeline_steps(tmp, recorder.steps)
         cleanup_duckdb_files(output)
         os.replace(tmp, output)
     finally:
@@ -197,22 +322,107 @@ def main() -> int:
         cleanup_duckdb_files(tmp)
 
     print(f"wrote {rel(repo_root, output)}")
-    manifest_output = emit_dashboard_manifest(website_dir)
+    manifest_output = recorder.run(
+        "emit_dashboard_manifest",
+        "config",
+        lambda: emit_dashboard_manifest(config),
+        output_count=lambda path: 1 if path else 0,
+    )
     if manifest_output:
         print(f"wrote {rel(repo_root, manifest_output)}")
     return 0
 
 
-def emit_dashboard_manifest(website_dir: Path) -> Path | None:
-    source = website_dir / DASHBOARD_MANIFEST_PATH
+def load_pipeline_config(
+    repo_root: Path, website_dir: Path, manifest_path: Path
+) -> PipelineConfig:
+    manifest = read_toml(manifest_path) if manifest_path.exists() else {}
+    pipeline = manifest.get("pipeline", {})
+    limits = manifest.get("limits", {})
+    content = manifest.get("content", {})
+    dashboard = manifest.get("dashboard_manifest", {})
+    zorto_build = manifest.get("zorto_build", {})
+    privacy = manifest.get("privacy", {})
+
+    schema_version = int(pipeline.get("schema_version", DEFAULT_SCHEMA_VERSION))
+    generator_version = str(
+        pipeline.get("generator_version", DEFAULT_GENERATOR_VERSION)
+    )
+    database_path = repo_path(
+        repo_root, str(pipeline.get("database_path", "website/static/data/meta.ddb"))
+    )
+    build_output_dir = repo_path(
+        repo_root, str(pipeline.get("build_output_dir", "target/zorto-meta-public"))
+    )
+    command = [
+        str(part)
+        for part in zorto_build.get(
+            "command",
+            [
+                "cargo",
+                "run",
+                "-p",
+                "zorto",
+                "--",
+                "--root",
+                "website",
+                "--sandbox",
+                ".",
+                "build",
+                "--output",
+                "{build_output_dir}",
+            ],
+        )
+    ]
+    public_command = str(
+        zorto_build.get(
+            "public_command",
+            "cargo run -p zorto -- --root website --sandbox . build --output "
+            "{build_output_dir}",
+        )
+    )
+
+    return PipelineConfig(
+        schema_version=schema_version,
+        generator_version=generator_version,
+        database_path=database_path,
+        build_output_dir=build_output_dir,
+        commit_limit=int(limits.get("commit_limit", 250)),
+        term_limit=int(limits.get("term_limit", 500)),
+        content_prefixes=tuple(
+            str(prefix) for prefix in content.get("prefixes", DEFAULT_CONTENT_PREFIXES)
+        ),
+        content_excludes=tuple(str(path) for path in content.get("excludes", [])),
+        dashboard_manifest_path=repo_path(
+            repo_root, str(dashboard.get("source", "website/data/analytics.toml"))
+        ),
+        dashboard_manifest_output_path=repo_path(
+            repo_root,
+            str(
+                dashboard.get("output", "website/static/data/analytics-dashboard.json")
+            ),
+        ),
+        zorto_command=command,
+        public_command=public_command,
+        forbidden_regex=tuple(
+            str(pattern) for pattern in privacy.get("forbidden_regex", [])
+        ),
+    )
+
+
+def emit_dashboard_manifest(config: PipelineConfig) -> Path | None:
+    source = config.dashboard_manifest_path
     if not source.exists():
         return None
 
     manifest = read_toml(source)
-    manifest["source_path"] = DASHBOARD_MANIFEST_PATH
+    try:
+        manifest["source_path"] = rel(source.parent.parent, source)
+    except ValueError:
+        manifest["source_path"] = source.name
     manifest["generated_at"] = now_iso()
 
-    output = website_dir / DASHBOARD_MANIFEST_OUTPUT_PATH
+    output = config.dashboard_manifest_output_path
     output.parent.mkdir(parents=True, exist_ok=True)
     tmp = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
     tmp.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
@@ -223,22 +433,94 @@ def emit_dashboard_manifest(website_dir: Path) -> Path | None:
 def write_database(
     con: Any,
     repo_root: Path,
+    config: PipelineConfig,
+    recorder: PipelineRecorder,
     build_runs: list[BuildRun],
     build_outputs: list[tuple[str, int, str, str, str]],
 ) -> None:
     create_schema(con)
-    insert_meta_info(con)
-    insert_repo_snapshot(con, repo_root)
-    commits = collect_commits(repo_root)
-    insert_commits(con, commits)
-    insert_commit_daily(con, commits)
-    insert_packages(con, repo_root)
-    content_files = collect_content_files(repo_root)
-    insert_content_files(con, content_files)
-    insert_content_terms(con, content_files)
-    insert_content_links(con, repo_root, content_files, build_outputs)
-    insert_build_runs(con, build_runs)
-    con.executemany("INSERT INTO build_outputs VALUES (?, ?, ?, ?, ?)", build_outputs)
+    recorder.run(
+        "insert_meta_info",
+        "duckdb",
+        lambda: insert_meta_info(con, config),
+        output_count=lambda _result: 1,
+    )
+    recorder.run(
+        "insert_repo_snapshot",
+        "git",
+        lambda: insert_repo_snapshot(con, repo_root),
+        output_count=lambda _result: 1,
+    )
+    commits: list[Commit] = recorder.run(
+        "collect_commits",
+        "git",
+        lambda: collect_commits(repo_root, config),
+        output_count=len,
+    )
+    recorder.run(
+        "insert_commits",
+        "duckdb",
+        lambda: insert_commits(con, commits),
+        input_count=len(commits),
+        output_count=lambda _result: len(commits),
+    )
+    recorder.run(
+        "insert_commit_daily",
+        "duckdb",
+        lambda: insert_commit_daily(con, commits),
+        input_count=len(commits),
+        output_count=lambda rows: rows,
+    )
+    recorder.run(
+        "insert_packages",
+        "duckdb",
+        lambda: insert_packages(con, repo_root),
+        output_count=lambda rows: rows,
+    )
+    content_files: list[ContentFile] = recorder.run(
+        "collect_content_files",
+        "filesystem",
+        lambda: collect_content_files(repo_root, config),
+        output_count=len,
+    )
+    recorder.run(
+        "insert_content_files",
+        "duckdb",
+        lambda: insert_content_files(con, content_files),
+        input_count=len(content_files),
+        output_count=lambda _result: len(content_files),
+    )
+    recorder.run(
+        "insert_content_terms",
+        "duckdb",
+        lambda: insert_content_terms(con, content_files, config),
+        input_count=len(content_files),
+        output_count=lambda rows: rows,
+    )
+    recorder.run(
+        "insert_content_links",
+        "duckdb",
+        lambda: insert_content_links(con, repo_root, content_files, build_outputs),
+        input_count=len(content_files),
+        output_count=lambda rows: rows,
+    )
+    recorder.run(
+        "insert_build_runs",
+        "duckdb",
+        lambda: insert_build_runs(con, build_runs),
+        input_count=len(build_runs),
+        output_count=lambda _result: len(build_runs),
+    )
+    recorder.run(
+        "insert_build_outputs",
+        "duckdb",
+        lambda: con.executemany(
+            "INSERT INTO build_outputs VALUES (?, ?, ?, ?, ?)", build_outputs
+        ),
+        input_count=len(build_outputs),
+        output_count=lambda _result: len(build_outputs),
+    )
+    insert_pipeline_steps(con, recorder.steps)
     con.execute("CHECKPOINT")
 
 
@@ -318,14 +600,33 @@ def create_schema(con: Any) -> None:
             kind VARCHAR NOT NULL,
             sha256 VARCHAR NOT NULL
         );
+        CREATE TABLE pipeline_steps (
+            step_name VARCHAR NOT NULL,
+            step_kind VARCHAR NOT NULL,
+            started_at TIMESTAMP NOT NULL,
+            finished_at TIMESTAMP NOT NULL,
+            duration_ms INTEGER NOT NULL,
+            status VARCHAR NOT NULL,
+            input_count INTEGER,
+            output_count INTEGER,
+            command VARCHAR,
+            detail VARCHAR,
+            warning VARCHAR,
+            error VARCHAR
+        );
         """
     )
 
 
-def insert_meta_info(con: Any) -> None:
+def insert_meta_info(con: Any, config: PipelineConfig) -> None:
     con.execute(
         "INSERT INTO meta_info VALUES (?, ?, ?, ?)",
-        [SCHEMA_VERSION, now_iso(), GENERATOR_VERSION, duckdb.__version__],
+        [
+            config.schema_version,
+            now_iso(),
+            config.generator_version,
+            duckdb.__version__,
+        ],
     )
 
 
@@ -341,11 +642,11 @@ def insert_repo_snapshot(con: Any, repo_root: Path) -> None:
     )
 
 
-def collect_commits(repo_root: Path) -> list[Commit]:
+def collect_commits(repo_root: Path, config: PipelineConfig) -> list[Commit]:
     output = git(
         repo_root,
         "log",
-        f"--max-count={COMMIT_LIMIT}",
+        f"--max-count={config.commit_limit}",
         "--date=iso-strict",
         "--format=commit:%H%x1f%h%x1f%cI%x1f%an%x1f%s",
         "--numstat",
@@ -398,7 +699,7 @@ def insert_commits(con: Any, commits: list[Commit]) -> None:
     )
 
 
-def insert_commit_daily(con: Any, commits: list[Commit]) -> None:
+def insert_commit_daily(con: Any, commits: list[Commit]) -> int:
     daily: dict[str, dict[str, int]] = defaultdict(
         lambda: {"commit_count": 0, "file_count": 0, "additions": 0, "deletions": 0}
     )
@@ -408,22 +709,24 @@ def insert_commit_daily(con: Any, commits: list[Commit]) -> None:
         daily[day]["file_count"] += commit.file_count
         daily[day]["additions"] += commit.additions
         daily[day]["deletions"] += commit.deletions
+    rows = [
+        (
+            day,
+            vals["commit_count"],
+            vals["file_count"],
+            vals["additions"],
+            vals["deletions"],
+        )
+        for day, vals in sorted(daily.items())
+    ]
     con.executemany(
         "INSERT INTO commit_daily VALUES (?, ?, ?, ?, ?)",
-        [
-            (
-                day,
-                vals["commit_count"],
-                vals["file_count"],
-                vals["additions"],
-                vals["deletions"],
-            )
-            for day, vals in sorted(daily.items())
-        ],
+        rows,
     )
+    return len(rows)
 
 
-def insert_packages(con: Any, repo_root: Path) -> None:
+def insert_packages(con: Any, repo_root: Path) -> int:
     rows: list[tuple[str, str, str, str]] = []
     root_cargo = read_toml(repo_root / "Cargo.toml")
     workspace_version = str(
@@ -459,12 +762,16 @@ def insert_packages(con: Any, repo_root: Path) -> None:
             )
 
     con.executemany("INSERT INTO packages VALUES (?, ?, ?, ?)", rows)
+    return len(rows)
 
 
-def collect_content_files(repo_root: Path) -> list[ContentFile]:
+def collect_content_files(repo_root: Path, config: PipelineConfig) -> list[ContentFile]:
     rows: list[ContentFile] = []
     for rel_path in git(repo_root, "ls-files").splitlines():
-        if not rel_path.startswith(CONTENT_PREFIXES) or rel_path in CONTENT_EXCLUDES:
+        if (
+            not rel_path.startswith(config.content_prefixes)
+            or rel_path in config.content_excludes
+        ):
             continue
         path = repo_root / rel_path
         if not path.is_file():
@@ -504,7 +811,9 @@ def insert_content_files(con: Any, files: list[ContentFile]) -> None:
     )
 
 
-def insert_content_terms(con: Any, files: list[ContentFile]) -> None:
+def insert_content_terms(
+    con: Any, files: list[ContentFile], config: PipelineConfig
+) -> int:
     counts: Counter[str] = Counter()
     files_by_term: defaultdict[str, set[str]] = defaultdict(set)
     for file in files:
@@ -515,9 +824,10 @@ def insert_content_terms(con: Any, files: list[ContentFile]) -> None:
             files_by_term[term].add(file.path)
     rows = [
         (term, len(files_by_term[term]), count)
-        for term, count in counts.most_common(TERM_LIMIT)
+        for term, count in counts.most_common(config.term_limit)
     ]
     con.executemany("INSERT INTO content_terms VALUES (?, ?, ?)", rows)
+    return len(rows)
 
 
 def insert_content_links(
@@ -525,7 +835,7 @@ def insert_content_links(
     repo_root: Path,
     files: list[ContentFile],
     build_outputs: list[tuple[str, int, str, str, str]],
-) -> None:
+) -> int:
     tracked = set(git(repo_root, "ls-files").splitlines())
     output_paths = {row[0] for row in build_outputs}
     rows = []
@@ -541,6 +851,7 @@ def insert_content_links(
             target_path, link_kind, exists = resolved
             rows.append((file.path, target, target_path, link_kind, exists))
     con.executemany("INSERT INTO content_links VALUES (?, ?, ?, ?, ?)", rows)
+    return len(rows)
 
 
 def insert_build_runs(con: Any, runs: list[BuildRun]) -> None:
@@ -561,28 +872,54 @@ def insert_build_runs(con: Any, runs: list[BuildRun]) -> None:
     )
 
 
-def run_zorto_build(repo_root: Path, website_dir: Path, build_output: Path) -> BuildRun:
+def insert_pipeline_steps(con: Any, steps: list[PipelineStep]) -> None:
+    con.executemany(
+        "INSERT INTO pipeline_steps VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (
+                step.step_name,
+                step.step_kind,
+                step.started_at,
+                step.finished_at,
+                step.duration_ms,
+                step.status,
+                step.input_count,
+                step.output_count,
+                step.command,
+                step.detail,
+                step.warning,
+                step.error,
+            )
+            for step in steps
+        ],
+    )
+
+
+def refresh_pipeline_steps(path: Path, steps: list[PipelineStep]) -> None:
+    con = duckdb.connect(str(path))
+    try:
+        con.execute("DELETE FROM pipeline_steps")
+        insert_pipeline_steps(con, steps)
+        con.execute("CHECKPOINT")
+    finally:
+        con.close()
+
+
+def run_zorto_build(
+    repo_root: Path, website_dir: Path, config: PipelineConfig
+) -> BuildRun:
+    build_output = config.build_output_dir
     build_output.mkdir(parents=True, exist_ok=True)
-    command = [
-        "cargo",
-        "run",
-        "-p",
-        "zorto",
-        "--",
-        "--root",
-        "website",
-        "--sandbox",
-        ".",
-        "build",
-        "--output",
-        str(build_output),
-    ]
-    public_command = "cargo run -p zorto -- --root website --sandbox . build --output target/zorto-meta-public"
     started = now_iso()
     started_monotonic = time.monotonic()
     env = os.environ.copy()
     env["VIRTUAL_ENV"] = str(website_dir / ".venv")
-    subprocess.run(command, cwd=repo_root, check=True, env=env)
+    subprocess.run(
+        render_command(repo_root, config.zorto_command, config.build_output_dir),
+        cwd=repo_root,
+        check=True,
+        env=env,
+    )
     finished = now_iso()
     return BuildRun(
         run_id=uuid.uuid4().hex,
@@ -591,7 +928,7 @@ def run_zorto_build(repo_root: Path, website_dir: Path, build_output: Path) -> B
         duration_ms=round((time.monotonic() - started_monotonic) * 1000),
         status="success",
         zorto_version=zorto_version(repo_root),
-        command=public_command,
+        command=render_public_command(repo_root, config),
     )
 
 
@@ -639,6 +976,37 @@ def read_previous_build_runs(output: Path) -> list[BuildRun]:
     ]
 
 
+def run_privacy_checks(
+    repo_root: Path, database_path: Path, config: PipelineConfig
+) -> list[str]:
+    findings: list[str] = []
+    content = database_path.read_bytes().decode("latin-1", errors="ignore")
+    default_patterns = [
+        re.escape(str(repo_root)),
+        r"/Users/",
+        r"/private/",
+        r"VIRTUAL_ENV",
+        r"\bHOME=",
+        r"\bPATH=",
+        r"GITHUB_TOKEN",
+        r"ghp_[A-Za-z0-9_]+",
+        r"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}",
+    ]
+    for pattern in [*default_patterns, *config.forbidden_regex]:
+        if re.search(pattern, content):
+            findings.append(pattern)
+
+    for untracked in git(
+        repo_root, "ls-files", "--others", "--exclude-standard"
+    ).splitlines():
+        if untracked and untracked in content:
+            findings.append(f"untracked path leaked: {untracked}")
+
+    if findings:
+        raise RuntimeError("privacy scan failed: " + "; ".join(findings[:6]))
+    return findings
+
+
 def git(repo_root: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=repo_root, text=True).rstrip(
         "\n"
@@ -648,6 +1016,28 @@ def git(repo_root: Path, *args: str) -> str:
 def read_toml(path: Path) -> dict:
     with path.open("rb") as f:
         return tomllib.load(f)
+
+
+def repo_path(repo_root: Path, path: str) -> Path:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return repo_root / candidate
+
+
+def render_command(
+    repo_root: Path, command: list[str], build_output: Path
+) -> list[str]:
+    return [
+        part.replace("{build_output_dir}", rel(repo_root, build_output))
+        for part in command
+    ]
+
+
+def render_public_command(repo_root: Path, config: PipelineConfig) -> str:
+    return config.public_command.replace(
+        "{build_output_dir}", rel(repo_root, config.build_output_dir)
+    )
 
 
 def should_skip_path(repo_root: Path, path: Path) -> bool:

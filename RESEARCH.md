@@ -34,10 +34,10 @@ The bolder version: Zorto can build full applications without becoming a traditi
 The zorto.dev analytics prototype should keep tightening this boundary:
 
 - Content: `website/content/analytics/_index.md` owns the page title, description, and explanatory prose.
-- Config: `website/data/analytics.toml` owns the dashboard database path, runtime assets, views, panels, KPI labels, signal labels, and saved SQL queries.
-- Code: `website/pipelines/build_meta.py`, `website/templates/analytics.html`, and `website/static/js/analytics-dashboard.js` should behave as machinery that compiles or renders the authored intent, not as the primary place to make ordinary dashboard changes.
+- Config: `website/data/meta.toml` owns the metadata pipeline contract, while `website/data/analytics.toml` owns the dashboard database path, pinned runtime assets, views, queries, panel bindings, KPI labels, signal labels, table columns, and saved SQL queries.
+- Code: `website/pipelines/build_meta.py`, `website/templates/analytics.html`, `website/static/js/data-app-runtime.js`, and `website/static/js/analytics-dashboard.js` should behave as machinery that compiles or renders the authored intent, not as the primary place to make ordinary dashboard changes.
 
-This is still a transitional shape. The next architectural target is to move more table/chart bindings and pipeline step definitions into config, then promote the generic pieces into Zorto once the website prototype feels boring.
+This is still a transitional shape. The next architectural target is to move more chart bindings and pipeline source definitions into config, then promote the generic pieces into Zorto once the website prototype feels boring.
 
 ## Current Zorto state
 
@@ -254,7 +254,7 @@ This fits Zorto's maintainer story: a human and an AI can both edit content, con
 - Storage compatibility: pin the DuckDB version used to write `site.ddb` against the DuckDB-Wasm version used to read it. The site should not emit a database newer than the browser runtime can open.
 - Dependency shape: adding DuckDB to Rust may be heavier than invoking `duckdb` when data features are enabled. Decide after a small spike.
 - Local runner contract: using `uv` and `duckdb` as external tools keeps Rust dependencies light, but Zorto must define good discovery, version checks, lockfile expectations, and cross-platform error messages.
-- CDN versus vendored runtime: current search loads sql.js from CDN; dkdc.dev loads DuckDB-Wasm from jsDelivr and Plotly from local vendor assets. Zorto should decide whether the default is CDN, vendored, or user-controlled.
+- CDN versus vendored runtime: the website prototype now uses pinned CDN assets for both DuckDB-Wasm and Plotly so the policy is consistent. Zorto should still decide whether supported data apps default to CDN, vendored assets, or user-controlled manifest URLs.
 - Security: post authors are only partly trusted. SQL and data source declarations likely belong to trusted site authors, while shortcode/dashboard args must keep validation and escaping boundaries.
 - Remote data: Quack endpoints need TLS, auth, CORS, and explicit opt-in. Static `.ddb` should stay the default because it is cacheable, inspectable, and deploys anywhere.
 - Docs drift: search docs should stop promising SQLite FTS5 if the implementation remains `LIKE` based.
