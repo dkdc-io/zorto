@@ -7,6 +7,16 @@ REPO_ROOT="$(cd "$WEBSITE_DIR/.." && pwd)"
 cd "$WEBSITE_DIR"
 uv sync
 
-# build with the local Rust CLI from repo root (--sandbox . allows shortcodes to reference ../crates/)
+# Netlify installs the released zorto binary before running this script. Use it
+# there so deploys stay fast and do not compile the repo.
 cd "$REPO_ROOT"
-VIRTUAL_ENV="$WEBSITE_DIR/.venv" cargo run -p zorto -- --root website --sandbox . build "$@"
+if [[ "${NETLIFY:-}" == "true" ]]; then
+  if ! command -v zorto >/dev/null 2>&1; then
+    echo "error: zorto CLI not found on PATH; install it before running website/bin/build on Netlify" >&2
+    exit 127
+  fi
+  VIRTUAL_ENV="$WEBSITE_DIR/.venv" zorto --root website --sandbox . build "$@"
+else
+  # Local builds use the current Rust workspace CLI from repo root.
+  VIRTUAL_ENV="$WEBSITE_DIR/.venv" cargo run -p zorto -- --root website --sandbox . build "$@"
+fi

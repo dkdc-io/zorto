@@ -43,6 +43,7 @@ Python checks: `ruff check .`, `ruff format --check .`, `ty check`
 The `website/` directory is the zorto.dev project site, built with zorto itself.
 
 ```bash
+website/bin/build # Build the website with uv-managed executable-code deps
 bin/preview        # Build + preview with --sandbox . (uses cargo run)
 website/bin/preview # Same thing (delegates to bin/preview)
 ```
@@ -55,6 +56,8 @@ cargo run -p zorto -- --root website --sandbox . preview --open
 ```
 
 Never run `zorto build` directly inside `website/` — it will fail with sandbox errors. Use `bin/preview` or pass `--sandbox .` from the repo root.
+
+Netlify deploys for zorto.dev are intentionally KISS: configure the Netlify UI command as `curl -LsSf https://dkdc.sh/zorto/install.sh | sh && ./bin/build` with `website` as the base directory. That runs `website/bin/build`; when `NETLIFY=true`, it uses the installed `zorto` binary from PATH and does not compile Rust on the deploy runner.
 
 ## Claude Code instructions
 
