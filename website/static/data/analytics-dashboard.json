@@ -1,0 +1,442 @@
+{
+  "dashboard": {
+    "database_file": "meta.ddb",
+    "database_schema": "meta",
+    "database_url": "/data/meta.ddb",
+    "duckdb_module_url": "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm",
+    "load_label": "Load analytics",
+    "loaded_label": "analytics loaded",
+    "plotly_url": "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@3.4.0/plotly.min.js"
+  },
+  "generated_at": "2026-05-16T18:46:56+00:00",
+  "kpis": [
+    {
+      "id": "commits",
+      "label": "Commits indexed"
+    },
+    {
+      "id": "content_files",
+      "label": "Content files"
+    },
+    {
+      "id": "build_output",
+      "label": "Build output"
+    },
+    {
+      "id": "repo_state",
+      "label": "Repo state"
+    },
+    {
+      "id": "terms",
+      "label": "Terms indexed"
+    },
+    {
+      "id": "generated",
+      "label": "Generated"
+    }
+  ],
+  "panels": [
+    {
+      "description": "Local history, line movement, and working tree pulse.",
+      "id": "commit-activity",
+      "kind": "chart",
+      "query_id": "daily",
+      "renderer": "commitActivity",
+      "title": "Commit activity",
+      "view": "overview",
+      "wide": true
+    },
+    {
+      "columns": [
+        {
+          "field": "short_sha",
+          "format": "code",
+          "label": "SHA"
+        },
+        {
+          "field": "committed_at",
+          "format": "date",
+          "label": "Date"
+        },
+        {
+          "field": "subject",
+          "label": "Subject"
+        },
+        {
+          "field": "file_count",
+          "format": "number",
+          "label": "Files"
+        },
+        {
+          "field": "additions",
+          "format": "number",
+          "label": "+"
+        },
+        {
+          "field": "deletions",
+          "format": "number",
+          "label": "-"
+        }
+      ],
+      "id": "recent-commits",
+      "kind": "table",
+      "query_id": "recent_commits",
+      "renderer": "table",
+      "title": "Recent commits",
+      "view": "overview"
+    },
+    {
+      "description": "Recorded metadata generation runs.",
+      "id": "build-duration",
+      "kind": "chart",
+      "query_id": "builds",
+      "renderer": "buildDuration",
+      "title": "Build duration",
+      "view": "overview"
+    },
+    {
+      "columns": [
+        {
+          "field": "table_name",
+          "format": "code",
+          "label": "Table"
+        },
+        {
+          "field": "rows",
+          "format": "number",
+          "label": "Rows"
+        }
+      ],
+      "description": "Tables stored inside meta.ddb.",
+      "id": "db-tables",
+      "kind": "table",
+      "query_id": "db_tables",
+      "renderer": "table",
+      "title": "Public data inventory",
+      "view": "overview"
+    },
+    {
+      "description": "Tracked docs and pages grouped by last commit age.",
+      "id": "content-freshness",
+      "kind": "chart",
+      "query_id": "freshness",
+      "renderer": "contentFreshness",
+      "title": "Content freshness",
+      "view": "content"
+    },
+    {
+      "description": "Search-shaped language from public docs and content.",
+      "id": "top-terms",
+      "kind": "chart",
+      "query_id": "terms",
+      "renderer": "topTerms",
+      "title": "Top terms",
+      "view": "content"
+    },
+    {
+      "columns": [
+        {
+          "field": "path",
+          "format": "code",
+          "label": "Path"
+        },
+        {
+          "field": "kind",
+          "label": "Kind"
+        },
+        {
+          "field": "word_count",
+          "format": "number",
+          "label": "Words"
+        },
+        {
+          "field": "last_commit_at",
+          "format": "date",
+          "label": "Updated"
+        }
+      ],
+      "id": "content-files",
+      "kind": "table",
+      "query_id": "content_files",
+      "renderer": "table",
+      "title": "Largest content files",
+      "view": "content"
+    },
+    {
+      "columns": [
+        {
+          "field": "source_path",
+          "format": "code",
+          "label": "Source"
+        },
+        {
+          "fallback_field": "target",
+          "field": "target_path",
+          "format": "code",
+          "label": "Target"
+        },
+        {
+          "field": "target_exists",
+          "format": "ok_missing",
+          "label": "Status"
+        }
+      ],
+      "id": "links",
+      "kind": "table",
+      "query_id": "links",
+      "renderer": "table",
+      "title": "Local link checks",
+      "view": "content"
+    },
+    {
+      "description": "Generated files by kind and extension.",
+      "id": "output-footprint",
+      "kind": "chart",
+      "query_id": "outputs_by_extension",
+      "renderer": "outputFootprint",
+      "title": "Output footprint",
+      "view": "build"
+    },
+    {
+      "description": "Bytes by generated artifact kind.",
+      "id": "output-mix",
+      "kind": "chart",
+      "query_id": "outputs_by_kind",
+      "renderer": "outputMix",
+      "title": "Output mix",
+      "view": "build"
+    },
+    {
+      "columns": [
+        {
+          "field": "path",
+          "format": "code",
+          "label": "Path"
+        },
+        {
+          "field": "kind",
+          "label": "Kind"
+        },
+        {
+          "field": "extension",
+          "label": "Extension"
+        },
+        {
+          "field": "bytes",
+          "format": "bytes",
+          "label": "Bytes"
+        }
+      ],
+      "id": "outputs",
+      "kind": "table",
+      "query_id": "outputs",
+      "renderer": "table",
+      "title": "Largest generated outputs",
+      "view": "build"
+    },
+    {
+      "columns": [
+        {
+          "field": "name",
+          "label": "Name"
+        },
+        {
+          "field": "version",
+          "format": "code",
+          "label": "Version"
+        },
+        {
+          "field": "ecosystem",
+          "label": "Ecosystem"
+        },
+        {
+          "field": "manifest_path",
+          "format": "code",
+          "label": "Manifest"
+        }
+      ],
+      "id": "packages",
+      "kind": "table",
+      "query_id": "packages",
+      "renderer": "table",
+      "title": "Packages",
+      "view": "build"
+    },
+    {
+      "columns": [
+        {
+          "field": "step_name",
+          "format": "code",
+          "label": "Step"
+        },
+        {
+          "field": "step_kind",
+          "label": "Kind"
+        },
+        {
+          "field": "status",
+          "label": "Status"
+        },
+        {
+          "field": "duration_ms",
+          "format": "duration",
+          "label": "Duration"
+        },
+        {
+          "field": "output_count",
+          "format": "number",
+          "label": "Rows"
+        }
+      ],
+      "description": "Every step that produced this checked-in database.",
+      "id": "pipeline-steps",
+      "kind": "table",
+      "query_id": "pipeline_steps",
+      "renderer": "table",
+      "title": "Pipeline receipts",
+      "view": "data"
+    },
+    {
+      "description": "Saved queries run against the attached meta.main schema.",
+      "id": "query-console",
+      "kind": "query",
+      "renderer": "queryConsole",
+      "title": "Readonly SQL console",
+      "view": "data"
+    }
+  ],
+  "queries": [
+    {
+      "id": "info",
+      "sql": "SELECT * FROM meta.main.meta_info LIMIT 1"
+    },
+    {
+      "id": "snapshot",
+      "sql": "SELECT * FROM meta.main.repo_snapshot LIMIT 1"
+    },
+    {
+      "id": "totals",
+      "sql": "SELECT\n  (SELECT count(*) FROM meta.main.commits) AS commits,\n  (SELECT count(*) FROM meta.main.content_files) AS content_files,\n  (SELECT coalesce(sum(word_count), 0) FROM meta.main.content_files) AS words,\n  (SELECT CAST(coalesce(sum(bytes), 0) AS DOUBLE) FROM meta.main.build_outputs) AS output_bytes,\n  (SELECT duration_ms FROM meta.main.build_runs ORDER BY finished_at DESC LIMIT 1) AS latest_build_ms,\n  (SELECT count(*) FROM meta.main.content_links WHERE target_exists = false) AS broken_links,\n  (SELECT count(*) FROM meta.main.content_terms) AS terms\n"
+    },
+    {
+      "id": "health",
+      "sql": "SELECT\n  count(*) FILTER (WHERE kind IN ('docs', 'content')) AS authored_files,\n  count(*) FILTER (WHERE kind IN ('docs', 'content') AND title IS NULL) AS untitled_files,\n  count(*) FILTER (WHERE kind IN ('docs', 'content') AND word_count = 0) AS empty_files,\n  (SELECT count(*) FROM meta.main.content_links) AS local_links,\n  (SELECT count(*) FROM meta.main.content_links WHERE target_exists = false) AS broken_links,\n  (SELECT count(*) FROM meta.main.content_terms) AS indexed_terms\nFROM meta.main.content_files\n"
+    },
+    {
+      "id": "daily",
+      "sql": "SELECT day, commit_count, additions, deletions\nFROM meta.main.commit_daily\nORDER BY day\n"
+    },
+    {
+      "id": "freshness",
+      "sql": "WITH generated AS (\n  SELECT CAST(generated_at AS DATE) AS generated_day\n  FROM meta.main.meta_info\n  LIMIT 1\n),\naged AS (\n  SELECT\n    kind,\n    CASE\n      WHEN last_commit_at IS NULL THEN 'unknown'\n      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 7 THEN '0-7d'\n      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 30 THEN '8-30d'\n      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 90 THEN '31-90d'\n      ELSE '90d+'\n    END AS age_bucket,\n    CASE\n      WHEN last_commit_at IS NULL THEN 5\n      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 7 THEN 1\n      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 30 THEN 2\n      WHEN date_diff('day', CAST(last_commit_at AS DATE), generated_day) <= 90 THEN 3\n      ELSE 4\n    END AS age_order,\n    word_count\n  FROM meta.main.content_files, generated\n  WHERE kind IN ('docs', 'content')\n)\nSELECT kind, age_bucket, min(age_order) AS age_order, count(*) AS file_count, coalesce(sum(word_count), 0) AS words\nFROM aged\nGROUP BY kind, age_bucket\nORDER BY age_order, kind\n"
+    },
+    {
+      "id": "terms",
+      "sql": "SELECT term, file_count, occurrence_count\nFROM meta.main.content_terms\nORDER BY occurrence_count DESC, file_count DESC\nLIMIT 20\n"
+    },
+    {
+      "id": "outputs_by_kind",
+      "sql": "SELECT kind, count(*) AS file_count, CAST(sum(bytes) AS DOUBLE) AS bytes\nFROM meta.main.build_outputs\nGROUP BY kind\nORDER BY bytes DESC\n"
+    },
+    {
+      "id": "outputs_by_extension",
+      "sql": "SELECT kind, extension, count(*) AS file_count, CAST(sum(bytes) AS DOUBLE) AS bytes\nFROM meta.main.build_outputs\nGROUP BY kind, extension\nORDER BY kind, bytes DESC\n"
+    },
+    {
+      "id": "builds",
+      "sql": "SELECT started_at, finished_at, duration_ms, status\nFROM meta.main.build_runs\nORDER BY started_at\n"
+    },
+    {
+      "id": "build_runs",
+      "sql": "SELECT started_at, finished_at, duration_ms, status, zorto_version, command\nFROM meta.main.build_runs\nORDER BY finished_at DESC\nLIMIT 2\n"
+    },
+    {
+      "id": "recent_commits",
+      "sql": "SELECT short_sha, committed_at, subject, file_count, additions, deletions\nFROM meta.main.commits\nORDER BY committed_at DESC\nLIMIT 8\n"
+    },
+    {
+      "id": "content_files",
+      "sql": "SELECT path, kind, title, word_count, bytes, last_commit_at\nFROM meta.main.content_files\nWHERE kind IN ('docs', 'content')\nORDER BY word_count DESC, bytes DESC\nLIMIT 14\n"
+    },
+    {
+      "id": "links",
+      "sql": "SELECT source_path, target, target_path, link_kind, target_exists\nFROM meta.main.content_links\nORDER BY target_exists ASC NULLS LAST, source_path\nLIMIT 14\n"
+    },
+    {
+      "id": "outputs",
+      "sql": "SELECT path, kind, extension, CAST(bytes AS DOUBLE) AS bytes\nFROM meta.main.build_outputs\nORDER BY bytes DESC\nLIMIT 14\n"
+    },
+    {
+      "id": "packages",
+      "sql": "SELECT ecosystem, name, version, manifest_path\nFROM meta.main.packages\nORDER BY ecosystem, name\n"
+    },
+    {
+      "id": "db_tables",
+      "sql": "SELECT 'meta_info' AS table_name, count(*) AS rows FROM meta.main.meta_info\nUNION ALL SELECT 'repo_snapshot', count(*) FROM meta.main.repo_snapshot\nUNION ALL SELECT 'commits', count(*) FROM meta.main.commits\nUNION ALL SELECT 'commit_daily', count(*) FROM meta.main.commit_daily\nUNION ALL SELECT 'packages', count(*) FROM meta.main.packages\nUNION ALL SELECT 'content_files', count(*) FROM meta.main.content_files\nUNION ALL SELECT 'content_terms', count(*) FROM meta.main.content_terms\nUNION ALL SELECT 'content_links', count(*) FROM meta.main.content_links\nUNION ALL SELECT 'build_runs', count(*) FROM meta.main.build_runs\nUNION ALL SELECT 'build_outputs', count(*) FROM meta.main.build_outputs\nUNION ALL SELECT 'pipeline_steps', count(*) FROM meta.main.pipeline_steps\nORDER BY rows DESC\n"
+    },
+    {
+      "id": "pipeline_steps",
+      "sql": "SELECT step_name, step_kind, status, duration_ms, output_count, command, detail\nFROM meta.main.pipeline_steps\nORDER BY started_at\n"
+    }
+  ],
+  "query_presets": [
+    {
+      "id": "catalog",
+      "label": "Catalog",
+      "sql": "SELECT 'meta_info' AS table_name, count(*) AS rows FROM meta.main.meta_info\nUNION ALL SELECT 'repo_snapshot', count(*) FROM meta.main.repo_snapshot\nUNION ALL SELECT 'commits', count(*) FROM meta.main.commits\nUNION ALL SELECT 'commit_daily', count(*) FROM meta.main.commit_daily\nUNION ALL SELECT 'packages', count(*) FROM meta.main.packages\nUNION ALL SELECT 'content_files', count(*) FROM meta.main.content_files\nUNION ALL SELECT 'content_terms', count(*) FROM meta.main.content_terms\nUNION ALL SELECT 'content_links', count(*) FROM meta.main.content_links\nUNION ALL SELECT 'build_runs', count(*) FROM meta.main.build_runs\nUNION ALL SELECT 'build_outputs', count(*) FROM meta.main.build_outputs\nUNION ALL SELECT 'pipeline_steps', count(*) FROM meta.main.pipeline_steps\nORDER BY rows DESC\n"
+    },
+    {
+      "id": "terms",
+      "label": "Terms",
+      "sql": "SELECT term, file_count, occurrence_count\nFROM meta.main.content_terms\nORDER BY occurrence_count DESC, file_count DESC\nLIMIT 30\n"
+    },
+    {
+      "id": "freshness",
+      "label": "Freshness",
+      "sql": "WITH generated AS (\n  SELECT CAST(generated_at AS DATE) AS generated_day\n  FROM meta.main.meta_info\n  LIMIT 1\n)\nSELECT path, kind, word_count, date_diff('day', CAST(last_commit_at AS DATE), generated_day) AS days_since_update\nFROM meta.main.content_files, generated\nWHERE kind IN ('docs', 'content')\nORDER BY days_since_update DESC NULLS LAST, word_count DESC\nLIMIT 30\n"
+    },
+    {
+      "id": "outputs",
+      "label": "Outputs",
+      "sql": "SELECT path, kind, extension, CAST(bytes AS DOUBLE) AS bytes\nFROM meta.main.build_outputs\nORDER BY bytes DESC\nLIMIT 30\n"
+    },
+    {
+      "id": "links",
+      "label": "Links",
+      "sql": "SELECT source_path, target, target_path, link_kind, target_exists\nFROM meta.main.content_links\nORDER BY target_exists ASC NULLS LAST, source_path\nLIMIT 40\n"
+    }
+  ],
+  "signals": [
+    {
+      "id": "build_pulse",
+      "label": "Build pulse"
+    },
+    {
+      "id": "docs_health",
+      "label": "Docs health"
+    },
+    {
+      "id": "working_tree",
+      "label": "Working tree"
+    }
+  ],
+  "source_path": "data/analytics.toml",
+  "views": [
+    {
+      "id": "overview",
+      "label": "Overview"
+    },
+    {
+      "id": "content",
+      "label": "Content"
+    },
+    {
+      "id": "build",
+      "label": "Build"
+    },
+    {
+      "id": "data",
+      "label": "Data"
+    }
+  ]
+}

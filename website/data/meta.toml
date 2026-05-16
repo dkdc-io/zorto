@@ -1,0 +1,54 @@
+[pipeline]
+schema_version = 3
+generator_version = "0.4.0"
+database_path = "website/static/data/meta.ddb"
+build_output_dir = "target/zorto-meta-public"
+
+[limits]
+commit_limit = 250
+term_limit = 500
+
+[zorto_build]
+command = [
+  "cargo",
+  "run",
+  "-p",
+  "zorto",
+  "--",
+  "--root",
+  "website",
+  "--sandbox",
+  ".",
+  "build",
+  "--output",
+  "{build_output_dir}",
+]
+public_command = "cargo run -p zorto -- --root website --sandbox . build --output {build_output_dir}"
+
+[dashboard_manifest]
+source = "website/data/analytics.toml"
+output = "website/static/data/analytics-dashboard.json"
+
+[content]
+prefixes = [
+  "docs/",
+  "website/content/",
+  "website/static/",
+]
+excludes = [
+  "website/static/data/meta.ddb",
+  "website/static/data/meta.ddb.wal",
+  "website/static/data/analytics-dashboard.json",
+]
+
+[privacy]
+forbidden_regex = [
+  "/Users/",
+  "/private/",
+  "VIRTUAL_ENV",
+  "\\bHOME=",
+  "\\bPATH=",
+  "GITHUB_TOKEN",
+  "ghp_[A-Za-z0-9_]+",
+  "(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}",
+]
