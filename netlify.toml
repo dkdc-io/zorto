@@ -1,4 +1,4 @@
 [build]
 base = "."
-command = "bin/setup-netlify && website/bin/build"
+command = "bin/build-netlify"
 publish = "website/public"
