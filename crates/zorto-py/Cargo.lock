@@ -2656,6 +2656,7 @@ dependencies = [
  "notify",
  "notify-debouncer-mini",
  "open",
+ "tempfile",
  "tokio",
  "zorto-core",
 ]
