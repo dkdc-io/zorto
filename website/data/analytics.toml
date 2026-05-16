@@ -2,7 +2,7 @@
 database_url = "/data/meta.ddb"
 database_file = "meta.ddb"
 database_schema = "meta"
-duckdb_module_url = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.5.2/+esm"
+duckdb_module_url = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm"
 plotly_url = "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@3.4.0/plotly.min.js"
 load_label = "Load analytics"
 loaded_label = "analytics loaded"
