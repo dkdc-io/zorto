@@ -488,7 +488,7 @@
   }
 
   async function doSearch(query) {
-    if (!query || query.length < 3) {
+    if (!query || query.trim().length < 1) {
       resultsEl.innerHTML = '';
       statusEl.textContent = '';
       selectedIdx = -1;
