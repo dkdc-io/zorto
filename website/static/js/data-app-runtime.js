@@ -14,7 +14,7 @@ const defaultOptions = {
   dashboardSelector: '[data-data-app-dashboard]',
   statusSelector: '[data-data-app-status]',
   defaultManifestUrl: '/data/app.json',
-  defaultDuckdbModuleUrl: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm',
+  defaultDuckdbModuleUrl: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.5.2/+esm',
   defaultPlotlyUrl: 'https://cdn.jsdelivr.net/npm/plotly.js-dist-min@3.4.0/plotly.min.js',
   defaultDatabaseUrl: '/data/site.ddb',
   defaultDatabaseFile: 'site.ddb',
