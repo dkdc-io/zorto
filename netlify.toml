@@ -1,3 +1,4 @@
 [build]
+base = "."
 command = "bin/setup && website/bin/build"
 publish = "website/public"
