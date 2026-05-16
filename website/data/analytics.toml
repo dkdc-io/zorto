@@ -1,0 +1,216 @@
+[dashboard]
+database_url = "/data/meta.ddb"
+database_file = "meta.ddb"
+database_schema = "meta"
+duckdb_module_url = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm"
+plotly_url = "/vendor/plotly/plotly-3.4.0.min.js"
+load_label = "Load analytics"
+loaded_label = "analytics loaded"
+
+[[views]]
+id = "overview"
+label = "Overview"
+
+[[views]]
+id = "content"
+label = "Content"
+
+[[views]]
+id = "build"
+label = "Build"
+
+[[views]]
+id = "data"
+label = "Data"
+
+[[kpis]]
+id = "commits"
+label = "Commits indexed"
+
+[[kpis]]
+id = "content_files"
+label = "Content files"
+
+[[kpis]]
+id = "build_output"
+label = "Build output"
+
+[[kpis]]
+id = "repo_state"
+label = "Repo state"
+
+[[kpis]]
+id = "terms"
+label = "Terms indexed"
+
+[[kpis]]
+id = "generated"
+label = "Generated"
+
+[[signals]]
+id = "build_pulse"
+label = "Build pulse"
+
+[[signals]]
+id = "docs_health"
+label = "Docs health"
+
+[[signals]]
+id = "working_tree"
+label = "Working tree"
+
+[[panels]]
+id = "commit-activity"
+view = "overview"
+kind = "chart"
+renderer = "commitActivity"
+title = "Commit activity"
+description = "Local history, line movement, and working tree pulse."
+wide = true
+
+[[panels]]
+id = "build-duration"
+view = "overview"
+kind = "chart"
+renderer = "buildDuration"
+title = "Build duration"
+description = "Recorded metadata generation runs."
+
+[[panels]]
+id = "db-tables"
+view = "overview"
+kind = "table"
+renderer = "dbTables"
+title = "Public data inventory"
+description = "Tables stored inside meta.ddb."
+
+[[panels]]
+id = "content-freshness"
+view = "content"
+kind = "chart"
+renderer = "contentFreshness"
+title = "Content freshness"
+description = "Tracked docs and pages grouped by last commit age."
+
+[[panels]]
+id = "top-terms"
+view = "content"
+kind = "chart"
+renderer = "topTerms"
+title = "Top terms"
+description = "Search-shaped language from public docs and content."
+
+[[panels]]
+id = "content-files"
+view = "content"
+kind = "table"
+renderer = "contentFiles"
+title = "Largest content files"
+
+[[panels]]
+id = "links"
+view = "content"
+kind = "table"
+renderer = "links"
+title = "Local link checks"
+
+[[panels]]
+id = "output-footprint"
+view = "build"
+kind = "chart"
+renderer = "outputFootprint"
+title = "Output footprint"
+description = "Generated files by kind and extension."
+
+[[panels]]
+id = "output-mix"
+view = "build"
+kind = "chart"
+renderer = "outputMix"
+title = "Output mix"
+description = "Bytes by generated artifact kind."
+
+[[panels]]
+id = "outputs"
+view = "build"
+kind = "table"
+renderer = "outputs"
+title = "Largest generated outputs"
+
+[[panels]]
+id = "packages"
+view = "build"
+kind = "table"
+renderer = "packages"
+title = "Packages"
+
+[[panels]]
+id = "query-console"
+view = "data"
+kind = "query"
+renderer = "queryConsole"
+title = "Readonly SQL console"
+description = "Saved queries run against the attached meta.main schema."
+
+[[query_presets]]
+id = "catalog"
+label = "Catalog"
+sql = """
+SELECT 'meta_info' AS table_name, count(*) AS rows FROM meta.main.meta_info
+UNION ALL SELECT 'repo_snapshot', count(*) FROM meta.main.repo_snapshot
+UNION ALL SELECT 'commits', count(*) FROM meta.main.commits
+UNION ALL SELECT 'commit_daily', count(*) FROM meta.main.commit_daily
+UNION ALL SELECT 'packages', count(*) FROM meta.main.packages
+UNION ALL SELECT 'content_files', count(*) FROM meta.main.content_files
+UNION ALL SELECT 'content_terms', count(*) FROM meta.main.content_terms
+UNION ALL SELECT 'content_links', count(*) FROM meta.main.content_links
+UNION ALL SELECT 'build_runs', count(*) FROM meta.main.build_runs
+UNION ALL SELECT 'build_outputs', count(*) FROM meta.main.build_outputs
+ORDER BY rows DESC
+"""
+
+[[query_presets]]
+id = "terms"
+label = "Terms"
+sql = """
+SELECT term, file_count, occurrence_count
+FROM meta.main.content_terms
+ORDER BY occurrence_count DESC, file_count DESC
+LIMIT 30
+"""
+
+[[query_presets]]
+id = "freshness"
+label = "Freshness"
+sql = """
+WITH generated AS (
+  SELECT CAST(generated_at AS DATE) AS generated_day
+  FROM meta.main.meta_info
+  LIMIT 1
+)
+SELECT path, kind, word_count, date_diff('day', CAST(last_commit_at AS DATE), generated_day) AS days_since_update
+FROM meta.main.content_files, generated
+WHERE kind IN ('docs', 'content')
+ORDER BY days_since_update DESC NULLS LAST, word_count DESC
+LIMIT 30
+"""
+
+[[query_presets]]
+id = "outputs"
+label = "Outputs"
+sql = """
+SELECT path, kind, extension, CAST(bytes AS DOUBLE) AS bytes
+FROM meta.main.build_outputs
+ORDER BY bytes DESC
+LIMIT 30
+"""
+
+[[query_presets]]
+id = "links"
+label = "Links"
+sql = """
+SELECT source_path, target, target_path, link_kind, target_exists
+FROM meta.main.content_links
+ORDER BY target_exists ASC NULLS LAST, source_path
+LIMIT 40
+"""

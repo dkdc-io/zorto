@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib
+import json
 import os
 import re
 import subprocess
@@ -34,8 +35,11 @@ CONTENT_PREFIXES = ("docs/", "website/content/", "website/static/")
 CONTENT_EXCLUDES = (
     "website/static/data/meta.ddb",
     "website/static/data/meta.ddb.wal",
+    "website/static/data/analytics-dashboard.json",
     "website/static/vendor/plotly/plotly-3.4.0.min.js",
 )
+DASHBOARD_MANIFEST_PATH = "data/analytics.toml"
+DASHBOARD_MANIFEST_OUTPUT_PATH = "static/data/analytics-dashboard.json"
 STOP_WORDS = {
     "about",
     "after",
@@ -193,7 +197,27 @@ def main() -> int:
         cleanup_duckdb_files(tmp)
 
     print(f"wrote {rel(repo_root, output)}")
+    manifest_output = emit_dashboard_manifest(website_dir)
+    if manifest_output:
+        print(f"wrote {rel(repo_root, manifest_output)}")
     return 0
+
+
+def emit_dashboard_manifest(website_dir: Path) -> Path | None:
+    source = website_dir / DASHBOARD_MANIFEST_PATH
+    if not source.exists():
+        return None
+
+    manifest = read_toml(source)
+    manifest["source_path"] = DASHBOARD_MANIFEST_PATH
+    manifest["generated_at"] = now_iso()
+
+    output = website_dir / DASHBOARD_MANIFEST_OUTPUT_PATH
+    output.parent.mkdir(parents=True, exist_ok=True)
+    tmp = output.with_name(f".{output.name}.{uuid.uuid4().hex}.tmp")
+    tmp.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    os.replace(tmp, output)
+    return output
 
 
 def write_database(

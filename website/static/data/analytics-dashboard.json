@@ -1,0 +1,193 @@
+{
+  "dashboard": {
+    "database_file": "meta.ddb",
+    "database_schema": "meta",
+    "database_url": "/data/meta.ddb",
+    "duckdb_module_url": "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm",
+    "load_label": "Load analytics",
+    "loaded_label": "analytics loaded",
+    "plotly_url": "/vendor/plotly/plotly-3.4.0.min.js"
+  },
+  "generated_at": "2026-05-16T18:02:28+00:00",
+  "kpis": [
+    {
+      "id": "commits",
+      "label": "Commits indexed"
+    },
+    {
+      "id": "content_files",
+      "label": "Content files"
+    },
+    {
+      "id": "build_output",
+      "label": "Build output"
+    },
+    {
+      "id": "repo_state",
+      "label": "Repo state"
+    },
+    {
+      "id": "terms",
+      "label": "Terms indexed"
+    },
+    {
+      "id": "generated",
+      "label": "Generated"
+    }
+  ],
+  "panels": [
+    {
+      "description": "Local history, line movement, and working tree pulse.",
+      "id": "commit-activity",
+      "kind": "chart",
+      "renderer": "commitActivity",
+      "title": "Commit activity",
+      "view": "overview",
+      "wide": true
+    },
+    {
+      "description": "Recorded metadata generation runs.",
+      "id": "build-duration",
+      "kind": "chart",
+      "renderer": "buildDuration",
+      "title": "Build duration",
+      "view": "overview"
+    },
+    {
+      "description": "Tables stored inside meta.ddb.",
+      "id": "db-tables",
+      "kind": "table",
+      "renderer": "dbTables",
+      "title": "Public data inventory",
+      "view": "overview"
+    },
+    {
+      "description": "Tracked docs and pages grouped by last commit age.",
+      "id": "content-freshness",
+      "kind": "chart",
+      "renderer": "contentFreshness",
+      "title": "Content freshness",
+      "view": "content"
+    },
+    {
+      "description": "Search-shaped language from public docs and content.",
+      "id": "top-terms",
+      "kind": "chart",
+      "renderer": "topTerms",
+      "title": "Top terms",
+      "view": "content"
+    },
+    {
+      "id": "content-files",
+      "kind": "table",
+      "renderer": "contentFiles",
+      "title": "Largest content files",
+      "view": "content"
+    },
+    {
+      "id": "links",
+      "kind": "table",
+      "renderer": "links",
+      "title": "Local link checks",
+      "view": "content"
+    },
+    {
+      "description": "Generated files by kind and extension.",
+      "id": "output-footprint",
+      "kind": "chart",
+      "renderer": "outputFootprint",
+      "title": "Output footprint",
+      "view": "build"
+    },
+    {
+      "description": "Bytes by generated artifact kind.",
+      "id": "output-mix",
+      "kind": "chart",
+      "renderer": "outputMix",
+      "title": "Output mix",
+      "view": "build"
+    },
+    {
+      "id": "outputs",
+      "kind": "table",
+      "renderer": "outputs",
+      "title": "Largest generated outputs",
+      "view": "build"
+    },
+    {
+      "id": "packages",
+      "kind": "table",
+      "renderer": "packages",
+      "title": "Packages",
+      "view": "build"
+    },
+    {
+      "description": "Saved queries run against the attached meta.main schema.",
+      "id": "query-console",
+      "kind": "query",
+      "renderer": "queryConsole",
+      "title": "Readonly SQL console",
+      "view": "data"
+    }
+  ],
+  "query_presets": [
+    {
+      "id": "catalog",
+      "label": "Catalog",
+      "sql": "SELECT 'meta_info' AS table_name, count(*) AS rows FROM meta.main.meta_info\nUNION ALL SELECT 'repo_snapshot', count(*) FROM meta.main.repo_snapshot\nUNION ALL SELECT 'commits', count(*) FROM meta.main.commits\nUNION ALL SELECT 'commit_daily', count(*) FROM meta.main.commit_daily\nUNION ALL SELECT 'packages', count(*) FROM meta.main.packages\nUNION ALL SELECT 'content_files', count(*) FROM meta.main.content_files\nUNION ALL SELECT 'content_terms', count(*) FROM meta.main.content_terms\nUNION ALL SELECT 'content_links', count(*) FROM meta.main.content_links\nUNION ALL SELECT 'build_runs', count(*) FROM meta.main.build_runs\nUNION ALL SELECT 'build_outputs', count(*) FROM meta.main.build_outputs\nORDER BY rows DESC\n"
+    },
+    {
+      "id": "terms",
+      "label": "Terms",
+      "sql": "SELECT term, file_count, occurrence_count\nFROM meta.main.content_terms\nORDER BY occurrence_count DESC, file_count DESC\nLIMIT 30\n"
+    },
+    {
+      "id": "freshness",
+      "label": "Freshness",
+      "sql": "WITH generated AS (\n  SELECT CAST(generated_at AS DATE) AS generated_day\n  FROM meta.main.meta_info\n  LIMIT 1\n)\nSELECT path, kind, word_count, date_diff('day', CAST(last_commit_at AS DATE), generated_day) AS days_since_update\nFROM meta.main.content_files, generated\nWHERE kind IN ('docs', 'content')\nORDER BY days_since_update DESC NULLS LAST, word_count DESC\nLIMIT 30\n"
+    },
+    {
+      "id": "outputs",
+      "label": "Outputs",
+      "sql": "SELECT path, kind, extension, CAST(bytes AS DOUBLE) AS bytes\nFROM meta.main.build_outputs\nORDER BY bytes DESC\nLIMIT 30\n"
+    },
+    {
+      "id": "links",
+      "label": "Links",
+      "sql": "SELECT source_path, target, target_path, link_kind, target_exists\nFROM meta.main.content_links\nORDER BY target_exists ASC NULLS LAST, source_path\nLIMIT 40\n"
+    }
+  ],
+  "signals": [
+    {
+      "id": "build_pulse",
+      "label": "Build pulse"
+    },
+    {
+      "id": "docs_health",
+      "label": "Docs health"
+    },
+    {
+      "id": "working_tree",
+      "label": "Working tree"
+    }
+  ],
+  "source_path": "data/analytics.toml",
+  "views": [
+    {
+      "id": "overview",
+      "label": "Overview"
+    },
+    {
+      "id": "content",
+      "label": "Content"
+    },
+    {
+      "id": "build",
+      "label": "Build"
+    },
+    {
+      "id": "data",
+      "label": "Data"
+    }
+  ]
+}

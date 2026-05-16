@@ -31,6 +31,14 @@ DuckDB, DuckDB-Wasm, Quack, and `uv` make this practical without inventing a new
 
 The bolder version: Zorto can build full applications without becoming a traditional app framework. The app state that matters is data; the durable contract is the `.ddb` plus generated/static assets; the interaction layer is HTML, CSS, and JavaScript. AI agents can do the heavy lifting of generating chart glue, forms, controls, and app-specific code, while Zorto keeps strict architecture around inputs, outputs, schemas, receipts, sandboxing, and human-editable config. That gives agents room to move without turning the repo into unreviewable generated mud.
 
+The zorto.dev analytics prototype should keep tightening this boundary:
+
+- Content: `website/content/analytics/_index.md` owns the page title, description, and explanatory prose.
+- Config: `website/data/analytics.toml` owns the dashboard database path, runtime assets, views, panels, KPI labels, signal labels, and saved SQL queries.
+- Code: `website/pipelines/build_meta.py`, `website/templates/analytics.html`, and `website/static/js/analytics-dashboard.js` should behave as machinery that compiles or renders the authored intent, not as the primary place to make ordinary dashboard changes.
+
+This is still a transitional shape. The next architectural target is to move more table/chart bindings and pipeline step definitions into config, then promote the generic pieces into Zorto once the website prototype feels boring.
+
 ## Current Zorto state
 
 ### Search

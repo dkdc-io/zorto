@@ -7,7 +7,7 @@
 {% endblock extra_head %}
 
 {% block content %}
-<article class="analytics-page" data-analytics-page>
+<article class="analytics-page" data-analytics-page data-manifest-url="/data/analytics-dashboard.json">
   <header class="analytics-hero">
     <p class="analytics-hero__eyebrow">local metadata, shipped as DuckDB</p>
     <h1 class="analytics-hero__title">{{ section.title }}</h1>
@@ -42,21 +42,21 @@
       <div class="analytics-kpis" data-analytics-kpis></div>
       <div class="analytics-signals" data-analytics-signals></div>
       <div class="analytics-panels">
-        <section class="analytics-panel analytics-panel--wide">
+        <section class="analytics-panel analytics-panel--wide" data-panel="commit-activity">
           <div class="analytics-panel__header">
             <h2>Commit activity</h2>
             <p>Local history, line movement, and working tree pulse.</p>
           </div>
           <div class="analytics-chart" data-chart="commit-activity"></div>
         </section>
-        <section class="analytics-panel">
+        <section class="analytics-panel" data-panel="build-duration">
           <div class="analytics-panel__header">
             <h2>Build duration</h2>
             <p>Recorded metadata generation runs.</p>
           </div>
           <div class="analytics-chart" data-chart="build-duration"></div>
         </section>
-        <section class="analytics-panel">
+        <section class="analytics-panel" data-panel="db-tables">
           <div class="analytics-panel__header">
             <h2>Public data inventory</h2>
             <p>Tables stored inside <code>meta.ddb</code>.</p>
@@ -73,14 +73,14 @@
 
     <section class="analytics-view" data-view="content" hidden>
       <div class="analytics-panels">
-        <section class="analytics-panel">
+        <section class="analytics-panel" data-panel="content-freshness">
           <div class="analytics-panel__header">
             <h2>Content freshness</h2>
             <p>Tracked docs and pages grouped by last commit age.</p>
           </div>
           <div class="analytics-chart" data-chart="content-freshness"></div>
         </section>
-        <section class="analytics-panel">
+        <section class="analytics-panel" data-panel="top-terms">
           <div class="analytics-panel__header">
             <h2>Top terms</h2>
             <p>Search-shaped language from public docs and content.</p>
@@ -89,7 +89,7 @@
         </section>
       </div>
       <div class="analytics-tables">
-        <section class="analytics-table-panel">
+        <section class="analytics-table-panel" data-panel="content-files">
           <div class="analytics-panel__header">
             <h2>Largest content files</h2>
           </div>
@@ -100,7 +100,7 @@
             </table>
           </div>
         </section>
-        <section class="analytics-table-panel">
+        <section class="analytics-table-panel" data-panel="links">
           <div class="analytics-panel__header">
             <h2>Local link checks</h2>
           </div>
@@ -116,14 +116,14 @@
 
     <section class="analytics-view" data-view="build" hidden>
       <div class="analytics-panels">
-        <section class="analytics-panel">
+        <section class="analytics-panel" data-panel="output-footprint">
           <div class="analytics-panel__header">
             <h2>Output footprint</h2>
             <p>Generated files by kind and extension.</p>
           </div>
           <div class="analytics-chart" data-chart="output-footprint"></div>
         </section>
-        <section class="analytics-panel">
+        <section class="analytics-panel" data-panel="output-mix">
           <div class="analytics-panel__header">
             <h2>Output mix</h2>
             <p>Bytes by generated artifact kind.</p>
@@ -132,7 +132,7 @@
         </section>
       </div>
       <div class="analytics-tables">
-        <section class="analytics-table-panel">
+        <section class="analytics-table-panel" data-panel="outputs">
           <div class="analytics-panel__header">
             <h2>Largest generated outputs</h2>
           </div>
@@ -143,7 +143,7 @@
             </table>
           </div>
         </section>
-        <section class="analytics-table-panel">
+        <section class="analytics-table-panel" data-panel="packages">
           <div class="analytics-panel__header">
             <h2>Packages</h2>
           </div>
@@ -158,7 +158,7 @@
     </section>
 
     <section class="analytics-view" data-view="data" hidden>
-      <section class="analytics-query">
+      <section class="analytics-query" data-panel="query-console">
         <div class="analytics-panel__header">
           <h2>Readonly SQL console</h2>
           <p>Saved queries run against the attached <code>meta.main</code> schema.</p>

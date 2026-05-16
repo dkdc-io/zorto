@@ -1,6 +1,7 @@
-const DUCKDB_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm';
-const PLOTLY_URL = '/vendor/plotly/plotly-3.4.0.min.js';
-const META_DB_URL = '/data/meta.ddb';
+const DEFAULT_MANIFEST_URL = '/data/analytics-dashboard.json';
+const DEFAULT_DUCKDB_MODULE_URL = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.33.1-dev45.0/+esm';
+const DEFAULT_PLOTLY_URL = '/vendor/plotly/plotly-3.4.0.min.js';
+const DEFAULT_META_DB_URL = '/data/meta.ddb';
 
 const palette = [
   'rgb(167,139,250)',
@@ -12,7 +13,7 @@ const palette = [
   'rgb(244,114,182)'
 ];
 
-const savedQueries = [
+const defaultQueryPresets = [
   {
     id: 'catalog',
     label: 'Catalog',
@@ -75,6 +76,7 @@ LIMIT 40`
 
 let plotlyPromise;
 let duckPromise;
+let manifestPromise;
 
 document.querySelectorAll('[data-analytics-load]').forEach((button) => {
   button.addEventListener('click', () => loadAnalytics(button));
@@ -90,19 +92,22 @@ async function loadAnalytics(button) {
 
   button.dataset.loading = 'true';
   button.disabled = true;
-  setStatus('loading Plotly');
+  setStatus('loading dashboard config');
 
   try {
-    await loadPlotly();
+    const manifest = await loadDashboardManifest(page);
+    applyDashboardManifest(page, manifest);
+    setStatus('loading Plotly');
+    await loadPlotly(manifest);
     setStatus('loading DuckDB-Wasm');
-    const duck = await loadDuckDB();
-    setStatus('opening meta.ddb');
-    await attachMetaDatabase(duck);
+    const duck = await loadDuckDB(manifest);
+    setStatus('opening ' + databaseFile(manifest));
+    await attachMetaDatabase(duck, manifest);
     setStatus('querying metadata');
-    const data = await loadDashboardData(duck.conn);
+    const data = await loadDashboardData(duck.conn, manifest);
     dashboard.hidden = false;
-    renderDashboard(page, data, duck.conn);
-    button.textContent = 'analytics loaded';
+    renderDashboard(page, data, duck.conn, manifest);
+    button.textContent = dashboardConfig(manifest).loaded_label || 'analytics loaded';
     setStatus('ready');
   } catch (error) {
     console.error(error);
@@ -117,12 +122,78 @@ async function loadAnalytics(button) {
   }
 }
 
-function loadPlotly() {
+async function loadDashboardManifest(page) {
+  if (!manifestPromise) {
+    const url = page.dataset.manifestUrl || DEFAULT_MANIFEST_URL;
+    manifestPromise = fetch(url).then(async (response) => {
+      if (!response.ok) throw new Error('failed to fetch dashboard manifest (HTTP ' + response.status + ')');
+      return normalizeManifest(await response.json());
+    });
+  }
+  return manifestPromise;
+}
+
+function normalizeManifest(manifest) {
+  const normalized = manifest && typeof manifest === 'object' ? manifest : {};
+  normalized.dashboard = Object.assign({}, normalized.dashboard || {});
+  normalized.views = Array.isArray(normalized.views) ? normalized.views : [];
+  normalized.panels = Array.isArray(normalized.panels) ? normalized.panels : [];
+  normalized.kpis = Array.isArray(normalized.kpis) ? normalized.kpis : [];
+  normalized.signals = Array.isArray(normalized.signals) ? normalized.signals : [];
+  normalized.query_presets = Array.isArray(normalized.query_presets) && normalized.query_presets.length
+    ? normalized.query_presets
+    : defaultQueryPresets;
+  return normalized;
+}
+
+function dashboardConfig(manifest) {
+  return manifest && manifest.dashboard ? manifest.dashboard : {};
+}
+
+function queryPresets(manifest) {
+  return manifest && Array.isArray(manifest.query_presets) && manifest.query_presets.length
+    ? manifest.query_presets
+    : defaultQueryPresets;
+}
+
+function databaseUrl(manifest) {
+  return dashboardConfig(manifest).database_url || DEFAULT_META_DB_URL;
+}
+
+function databaseFile(manifest) {
+  return dashboardConfig(manifest).database_file || 'meta.ddb';
+}
+
+function databaseSchema(manifest) {
+  return dashboardConfig(manifest).database_schema || 'meta';
+}
+
+function applyDashboardManifest(page, manifest) {
+  (manifest.views || []).forEach((view) => {
+    const button = page.querySelector('[data-view-toggle="' + attrSelector(view.id) + '"]');
+    if (button && view.label) button.textContent = view.label;
+  });
+
+  (manifest.panels || []).forEach((panel) => {
+    const section = page.querySelector('[data-panel="' + attrSelector(panel.id) + '"]');
+    if (!section) return;
+    const title = section.querySelector('.analytics-panel__header h2');
+    const description = section.querySelector('.analytics-panel__header p');
+    if (title && panel.title) title.textContent = panel.title;
+    if (description) {
+      description.textContent = panel.description || '';
+      description.hidden = !panel.description;
+    }
+    section.classList.toggle('analytics-panel--wide', Boolean(panel.wide));
+  });
+}
+
+function loadPlotly(manifest) {
   if (window.Plotly) return Promise.resolve(window.Plotly);
   if (!plotlyPromise) {
     plotlyPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = PLOTLY_URL;
+      script.src = dashboardConfig(manifest).plotly_url || DEFAULT_PLOTLY_URL;
       script.async = true;
       script.charset = 'utf-8';
       script.onload = () => resolve(window.Plotly);
@@ -133,10 +204,10 @@ function loadPlotly() {
   return plotlyPromise;
 }
 
-async function loadDuckDB() {
+async function loadDuckDB(manifest) {
   if (!duckPromise) {
     duckPromise = (async () => {
-      const duckdb = await import(DUCKDB_MODULE_URL);
+      const duckdb = await import(dashboardConfig(manifest).duckdb_module_url || DEFAULT_DUCKDB_MODULE_URL);
       const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
       const worker = await duckdb.createWorker(bundle.mainWorker);
       const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
@@ -148,18 +219,22 @@ async function loadDuckDB() {
   return duckPromise;
 }
 
-async function attachMetaDatabase(duck) {
+async function attachMetaDatabase(duck, manifest) {
   if (duck.metaAttached) return;
-  const response = await fetch(META_DB_URL);
-  if (!response.ok) throw new Error('failed to fetch ' + META_DB_URL + ' (HTTP ' + response.status + ')');
+  const dbUrl = databaseUrl(manifest);
+  const dbFile = databaseFile(manifest);
+  const dbSchema = databaseSchema(manifest);
+  const response = await fetch(dbUrl);
+  if (!response.ok) throw new Error('failed to fetch ' + dbUrl + ' (HTTP ' + response.status + ')');
   const bytes = new Uint8Array(await response.arrayBuffer());
-  await duck.db.registerFileBuffer('meta.ddb', bytes);
-  await duck.conn.query("ATTACH 'meta.ddb' AS meta (READ_ONLY)");
+  await duck.db.registerFileBuffer(dbFile, bytes);
+  await duck.conn.query("ATTACH '" + dbFile.replace(/'/g, "''") + "' AS " + sqlIdentifier(dbSchema) + " (READ_ONLY)");
   duck.metaAttached = true;
 }
 
-async function loadDashboardData(conn) {
-  const tableCountsSql = savedQueries.find((queryDef) => queryDef.id === 'catalog').sql;
+async function loadDashboardData(conn, manifest) {
+  const catalogQuery = queryPresets(manifest).find((queryDef) => queryDef.id === 'catalog') || defaultQueryPresets[0];
+  const tableCountsSql = catalogQuery.sql;
   return {
     info: await first(conn, 'SELECT * FROM meta.main.meta_info LIMIT 1'),
     snapshot: await first(conn, 'SELECT * FROM meta.main.repo_snapshot LIMIT 1'),
@@ -295,10 +370,10 @@ async function query(conn, sql) {
   return rows;
 }
 
-function renderDashboard(page, data, conn) {
+function renderDashboard(page, data, conn, manifest) {
   setupTabs(page);
-  renderKpis(page.querySelector('[data-analytics-kpis]'), data);
-  renderSignals(page.querySelector('[data-analytics-signals]'), data);
+  renderKpis(page.querySelector('[data-analytics-kpis]'), data, manifest);
+  renderSignals(page.querySelector('[data-analytics-signals]'), data, manifest);
   renderCommitActivity(page.querySelector('[data-chart="commit-activity"]'), data.daily);
   renderBuildDuration(page.querySelector('[data-chart="build-duration"]'), data.builds);
   renderContentFreshness(page.querySelector('[data-chart="content-freshness"]'), data.freshness);
@@ -306,7 +381,7 @@ function renderDashboard(page, data, conn) {
   renderOutputFootprint(page.querySelector('[data-chart="output-footprint"]'), data.outputsByExtension);
   renderOutputMix(page.querySelector('[data-chart="output-mix"]'), data.outputsByKind);
   renderCoreTables(page, data);
-  setupQueryExplorer(page, conn);
+  setupQueryExplorer(page, conn, manifest);
   resizeVisibleCharts(page);
 }
 
@@ -327,11 +402,12 @@ function setupTabs(page) {
   });
 }
 
-function setupQueryExplorer(page, conn) {
+function setupQueryExplorer(page, conn, manifest) {
   const presets = page.querySelector('[data-query-presets]');
   const editor = page.querySelector('[data-query-editor]');
   const runButton = page.querySelector('[data-query-run]');
   const status = page.querySelector('[data-query-status]');
+  const savedQueries = queryPresets(manifest);
 
   if (presets.dataset.ready !== 'true') {
     presets.innerHTML = savedQueries.map((queryDef, index) => (
@@ -374,17 +450,18 @@ function setupQueryExplorer(page, conn) {
   runButton.click();
 }
 
-function renderKpis(mount, data) {
+function renderKpis(mount, data, manifest) {
   const snapshot = data.snapshot || {};
   const totals = data.totals || {};
   const info = data.info || {};
+  const label = (id, fallback) => labelFor(manifest.kpis, id, fallback);
   const cards = [
-    ['Commits indexed', formatNumber(totals.commits), 'latest local git history'],
-    ['Content files', formatNumber(totals.content_files), formatNumber(totals.words) + ' words'],
-    ['Build output', formatBytes(totals.output_bytes), formatDuration(totals.latest_build_ms) + ' latest build'],
-    ['Repo state', snapshot.dirty ? 'dirty' : 'clean', shortSha(snapshot.head_sha) + ' on ' + snapshot.branch],
-    ['Terms indexed', formatNumber(totals.terms), 'search-shaped content signals'],
-    ['Generated', shortDate(info.generated_at), 'schema v' + info.schema_version + ', DuckDB ' + info.duckdb_version]
+    [label('commits', 'Commits indexed'), formatNumber(totals.commits), 'latest local git history'],
+    [label('content_files', 'Content files'), formatNumber(totals.content_files), formatNumber(totals.words) + ' words'],
+    [label('build_output', 'Build output'), formatBytes(totals.output_bytes), formatDuration(totals.latest_build_ms) + ' latest build'],
+    [label('repo_state', 'Repo state'), snapshot.dirty ? 'dirty' : 'clean', shortSha(snapshot.head_sha) + ' on ' + snapshot.branch],
+    [label('terms', 'Terms indexed'), formatNumber(totals.terms), 'search-shaped content signals'],
+    [label('generated', 'Generated'), shortDate(info.generated_at), 'schema v' + info.schema_version + ', DuckDB ' + info.duckdb_version]
   ];
   mount.innerHTML = cards.map(([label, value, note]) => (
     '<article class="analytics-kpi">' +
@@ -395,10 +472,11 @@ function renderKpis(mount, data) {
   )).join('');
 }
 
-function renderSignals(mount, data) {
+function renderSignals(mount, data, manifest) {
   const snapshot = data.snapshot || {};
   const health = data.health || {};
   const builds = data.buildRuns || [];
+  const label = (id, fallback) => labelFor(manifest.signals, id, fallback);
   const latest = builds[0] || {};
   const previous = builds[1] || {};
   const delta = Number(latest.duration_ms || 0) - Number(previous.duration_ms || 0);
@@ -406,9 +484,9 @@ function renderSignals(mount, data) {
   const linkText = Number(health.broken_links || 0) === 0 ? 'all checked links pass' : formatNumber(health.broken_links) + ' need attention';
   const dirtyText = snapshot.dirty ? formatNumber(snapshot.untracked_count) + ' untracked files' : 'working tree is clean';
   const cards = [
-    ['Build pulse', formatDuration(latest.duration_ms), deltaText, delta <= 0 ? 'good' : 'hot'],
-    ['Docs health', linkText, formatNumber(health.local_links) + ' local links checked', Number(health.broken_links || 0) ? 'watch' : 'good'],
-    ['Working tree', snapshot.dirty ? 'in motion' : 'clean', dirtyText, snapshot.dirty ? 'hot' : 'good']
+    [label('build_pulse', 'Build pulse'), formatDuration(latest.duration_ms), deltaText, delta <= 0 ? 'good' : 'hot'],
+    [label('docs_health', 'Docs health'), linkText, formatNumber(health.local_links) + ' local links checked', Number(health.broken_links || 0) ? 'watch' : 'good'],
+    [label('working_tree', 'Working tree'), snapshot.dirty ? 'in motion' : 'clean', dirtyText, snapshot.dirty ? 'hot' : 'good']
   ];
   mount.innerHTML = cards.map(([label, value, note, tone]) => (
     '<article class="analytics-signal analytics-signal--' + tone + '">' +
@@ -723,6 +801,21 @@ function shortSha(value) {
 
 function sum(values) {
   return values.reduce((total, value) => total + Number(value || 0), 0);
+}
+
+function labelFor(items, id, fallback) {
+  const item = (items || []).find((candidate) => candidate.id === id);
+  return item && item.label ? item.label : fallback;
+}
+
+function attrSelector(value) {
+  return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function sqlIdentifier(value) {
+  const name = String(value || '');
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error('invalid DuckDB schema name in analytics manifest');
+  return name;
 }
 
 function escapeHtml(value) {
