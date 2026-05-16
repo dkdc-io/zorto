@@ -4,8 +4,10 @@ Project site for [Zorto](https://github.com/dkdc-io/zorto) — the AI-native sta
 
 ## Commands
 
+- `bin/build`: Build site to `public/`
 - `bin/preview`: Start dev server with auto-open browser
-- `zorto build`: Build site to `public/`
+
+Production deploys use the released `zorto` binary installed by the Netlify UI command. When a core theme change should affect zorto.dev, cut the release first, then let Netlify rebuild the website with that released binary.
 
 ## Styling
 
