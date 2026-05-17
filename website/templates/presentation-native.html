@@ -36,6 +36,7 @@
             color: var(--deck-ink);
             font-family: var(--font-body);
             overflow: hidden;
+            overscroll-behavior: none;
         }
         body {
             -webkit-font-smoothing: antialiased;
@@ -121,6 +122,10 @@
             transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
             will-change: transform;
             outline: none;
+            touch-action: none;
+        }
+        .deck-shell[data-deck-axis="vertical"] .deck-track {
+            flex-direction: column;
         }
         .deck-track::-webkit-scrollbar { display: none; }
         .z-slide {
@@ -134,6 +139,11 @@
             isolation: isolate;
             background: var(--slide-bg);
             color: var(--slide-fg);
+        }
+        .deck-shell[data-deck-axis="vertical"] .z-slide {
+            flex-basis: calc(100vh - 40px);
+            width: 100vw;
+            height: calc(100vh - 40px);
         }
         .z-slide::before {
             content: "";
@@ -736,6 +746,10 @@
             .deck-progress { top: 38px; }
             .deck-track { padding-top: 38px; }
             .z-slide { height: calc(100vh - 38px); }
+            .deck-shell[data-deck-axis="vertical"] .z-slide {
+                flex-basis: calc(100vh - 38px);
+                height: calc(100vh - 38px);
+            }
             .z-slide__content {
                 padding: 56px 28px 74px;
             }
@@ -839,7 +853,7 @@
         <header class="deck-topbar">
             <a href="/presentations/">Zorto</a>
             <div class="deck-topbar__title">{{ section.title }}</div>
-            <div class="deck-topbar__keys">← / → · space · F</div>
+            <div class="deck-topbar__keys" id="deck-keys">← / → · space · F</div>
         </header>
         <div class="deck-progress" id="deck-progress" aria-hidden="true"></div>
         <main class="deck-track" id="deck-track" tabindex="-1">
@@ -879,11 +893,32 @@
             var slides = Array.prototype.slice.call(document.querySelectorAll('.z-slide'));
             var counter = document.getElementById('deck-counter');
             var progress = document.getElementById('deck-progress');
+            var shell = document.querySelector('.deck-shell');
+            var keys = document.getElementById('deck-keys');
             var active = 0;
             var fragmentIndex = 0;
+            var touchStart = null;
 
+            function isVerticalDeck() {
+                return window.innerHeight > window.innerWidth || window.innerWidth <= 760;
+            }
+            function slideDistance() {
+                if (!slides.length) return 0;
+                return isVerticalDeck() ? slides[active].offsetHeight : window.innerWidth;
+            }
+            function updateAxis() {
+                var axis = isVerticalDeck() ? 'vertical' : 'horizontal';
+                if (shell) shell.setAttribute('data-deck-axis', axis);
+                if (keys) keys.textContent = axis === 'vertical' ? '↑ / ↓ · swipe · space · F' : '← / → · space · F';
+            }
             function moveDeck() {
-                track.style.transform = 'translate3d(' + (-active * window.innerWidth) + 'px, 0, 0)';
+                updateAxis();
+                var distance = slideDistance();
+                if (isVerticalDeck()) {
+                    track.style.transform = 'translate3d(0, ' + (-active * distance) + 'px, 0)';
+                } else {
+                    track.style.transform = 'translate3d(' + (-active * distance) + 'px, 0, 0)';
+                }
             }
             function fragments(slide) {
                 return Array.prototype.slice.call(slide.querySelectorAll('.fragment'));
@@ -935,11 +970,11 @@
             function onKey(event) {
                 if (event.defaultPrevented) return;
                 var target = event.target;
-                if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-                if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'PageDown') {
+                if (isEditableTarget(target)) return;
+                if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ' || event.key === 'PageDown') {
                     event.preventDefault();
                     next();
-                } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+                } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'PageUp') {
                     event.preventDefault();
                     prev();
                 } else if (event.key === 'Home') {
@@ -955,8 +990,50 @@
                     else if (el.requestFullscreen) el.requestFullscreen();
                 }
             }
+            function isEditableTarget(target) {
+                if (!target) return false;
+                if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(target.tagName)) return true;
+                return Boolean(target.closest && target.closest('[contenteditable="true"], .deck-data-app, .deck-query-app'));
+            }
+            function startTouch(event) {
+                if (event.touches.length !== 1 || isEditableTarget(event.target)) {
+                    touchStart = null;
+                    return;
+                }
+                touchStart = {
+                    x: event.touches[0].clientX,
+                    y: event.touches[0].clientY,
+                };
+            }
+            function moveTouch(event) {
+                if (!touchStart || event.touches.length !== 1) return;
+                var dx = event.touches[0].clientX - touchStart.x;
+                var dy = event.touches[0].clientY - touchStart.y;
+                var primary = isVerticalDeck() ? Math.abs(dy) : Math.abs(dx);
+                var cross = isVerticalDeck() ? Math.abs(dx) : Math.abs(dy);
+                if (primary > 12 && primary > cross) {
+                    event.preventDefault();
+                }
+            }
+            function endTouch(event) {
+                if (!touchStart || !event.changedTouches.length) return;
+                var dx = event.changedTouches[0].clientX - touchStart.x;
+                var dy = event.changedTouches[0].clientY - touchStart.y;
+                var vertical = isVerticalDeck();
+                var delta = vertical ? -dy : -dx;
+                var cross = vertical ? Math.abs(dx) : Math.abs(dy);
+                var threshold = Math.max(42, (vertical ? window.innerHeight : window.innerWidth) * 0.12);
+                touchStart = null;
+                if (Math.abs(delta) < threshold || Math.abs(delta) < cross * 1.15) return;
+                if (delta > 0) next();
+                else prev();
+            }
             window.addEventListener('keydown', onKey, true);
             document.addEventListener('keydown', onKey, true);
+            track.addEventListener('touchstart', startTouch, { passive: true });
+            track.addEventListener('touchmove', moveTouch, { passive: false });
+            track.addEventListener('touchend', endTouch, { passive: true });
+            track.addEventListener('touchcancel', function () { touchStart = null; }, { passive: true });
             window.addEventListener('resize', function () {
                 setActive(active, true);
                 moveDeck();
