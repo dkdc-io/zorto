@@ -41,15 +41,26 @@
 </div>
 {%- else %}
 {# Sub-section page: show sidebar with only this section's pages #}
+{% set is_getting_started = section.path == "/docs/getting-started/" %}
 <div class="docs-layout">
     <aside class="docs-sidebar">
         <nav class="docs-nav" aria-label="Documentation">
             <div class="docs-nav__section">
                 <h3><a href="{{ section.permalink | replace(from=config.base_url, to="") }}">{{ section.title }}</a></h3>
                 <ul>
+                {%- if is_getting_started %}
+                    {%- for wanted in ["docs/getting-started/installation.md", "docs/getting-started/quick-start.md", "docs/getting-started/first-site.md"] %}
+                        {%- for p in section.pages %}
+                            {%- if p.relative_path == wanted %}
+                    <li><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title }}</a></li>
+                            {%- endif %}
+                        {%- endfor %}
+                    {%- endfor %}
+                {%- else %}
                 {%- for p in section.pages %}
                     <li><a href="{{ p.permalink | replace(from=config.base_url, to="") }}">{{ p.title }}</a></li>
                 {%- endfor %}
+                {%- endif %}
                 </ul>
             </div>
         </nav>
@@ -63,6 +74,20 @@
             {%- endif %}
 
             <div class="docs-cards">
+            {%- if is_getting_started %}
+                {%- for wanted in ["docs/getting-started/installation.md", "docs/getting-started/quick-start.md", "docs/getting-started/first-site.md"] %}
+                    {%- for p in section.pages %}
+                        {%- if p.relative_path == wanted %}
+                <a href="{{ p.permalink | replace(from=config.base_url, to="") }}" class="docs-card">
+                    <h3>{{ p.title }}</h3>
+                            {%- if p.description %}
+                    <p>{{ p.description }}</p>
+                            {%- endif %}
+                </a>
+                        {%- endif %}
+                    {%- endfor %}
+                {%- endfor %}
+            {%- else %}
             {%- for p in section.pages %}
                 <a href="{{ p.permalink | replace(from=config.base_url, to="") }}" class="docs-card">
                     <h3>{{ p.title }}</h3>
@@ -71,6 +96,7 @@
                     {%- endif %}
                 </a>
             {%- endfor %}
+            {%- endif %}
             </div>
         </div>
     </div>
