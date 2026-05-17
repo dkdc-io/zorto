@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} | {{ config.title }}{% endblock title %}
+{% block extra_head %}
+<link rel="stylesheet" href="/data-app-post.css">
+{% endblock extra_head %}
+{% block content %}
+<article class="data-post">
+    <header class="data-post-hero">
+        <div class="data-post-hero__copy">
+            <p class="data-post-eyebrow">Product note</p>
+            <h1>{{ page.title }}</h1>
+            {% if page.description %}
+            <p class="data-post-lede">{{ page.description }}</p>
+            {% endif %}
+            <div class="data-post-meta">
+                {% if page.date %}<span>{{ page.date | date(format="%Y-%m-%d") }}</span>{% endif %}
+                {% if page.taxonomies and page.taxonomies.tags %}
+                <span>
+                    {% for tag in page.taxonomies.tags | sort %}
+                    <a href="{{ get_taxonomy_url(kind='tags', name=tag) | safe }}">#{{ tag }}</a>{% if not loop.last %} {% endif %}
+                    {% endfor %}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        <nav class="data-post-hero__links" aria-label="Post links">
+            <a href="/analytics/">View analytics</a>
+            <a href="/data/site.ddb">Open site.ddb</a>
+            <a href="https://github.com/dkdc-io/zorto/blob/main/website/bin/build-meta">Read pipeline</a>
+        </nav>
+    </header>
+
+    <section class="data-post-artifacts" aria-label="Zorto data app artifacts">
+        <a class="data-post-artifact" href="/data/site.ddb">
+            <span>Public database</span>
+            <strong>site.ddb</strong>
+            <small>DuckDB file served with the site</small>
+        </a>
+        <a class="data-post-artifact" href="/data/analytics-dashboard.json">
+            <span>Runtime manifest</span>
+            <strong>analytics-dashboard.json</strong>
+            <small>Panels, queries, views, labels</small>
+        </a>
+        <a class="data-post-artifact" href="/analytics/">
+            <span>Browser app</span>
+            <strong>/analytics/</strong>
+            <small>DuckDB-Wasm plus Plotly on demand</small>
+        </a>
+        <a class="data-post-artifact" href="/?q=zorto">
+            <span>Search</span>
+            <strong>.ddb-backed</strong>
+            <small>Same data, different interface</small>
+        </a>
+    </section>
+
+    <section class="data-post-meter-grid" aria-label="Current zorto.dev analytics surface">
+        <div class="data-post-meter" style="--meter: 100%">
+            <span>Queries</span>
+            <strong>18</strong>
+        </div>
+        <div class="data-post-meter" style="--meter: 78%">
+            <span>Panels</span>
+            <strong>14</strong>
+        </div>
+        <div class="data-post-meter" style="--meter: 33%">
+            <span>KPI cards</span>
+            <strong>6</strong>
+        </div>
+        <div class="data-post-meter" style="--meter: 22%">
+            <span>Views</span>
+            <strong>4</strong>
+        </div>
+    </section>
+
+    <div class="data-post-body post-content">
+        {{ page.content | safe }}
+    </div>
+</article>
+{% endblock content %}

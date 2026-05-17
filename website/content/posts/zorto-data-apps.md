@@ -2,60 +2,124 @@
 title = "Zorto as a data app builder"
 date = "2026-05-16"
 author = "Cody"
-description = "The zorto.dev analytics page is the first prototype of data apps backed by DuckDB."
+description = "Search, analytics, and the first DuckDB-backed data app pattern on zorto.dev."
 tags = ["zorto", "duckdb", "data"]
+template = "data-app-post.html"
 +++
 
-Zorto should build the site and the data behind it.
+[Zorto](/) now ships a public DuckDB database with the site.
 
 <!-- more -->
 
-The first proof is live in this repo now: zorto.dev has a local analytics dashboard powered by a checked-in DuckDB database.
+[`/data/site.ddb`](/data/site.ddb) is generated from local repo and build metadata. [Search](/?q=zorto) reads from it. The [analytics dashboard](/analytics/) reads from it. Static hosting serves it as a file; the browser attaches it read-only when a page needs data.
 
-This is not visitor analytics. No tracking, no cookies, no third-party event stream. It is metadata about the site itself: commits, packages, content files, local links, build outputs, and the pipeline steps that produced the database.
+No visitor analytics. No tracking, cookies, tokens, or third-party event stream. The database contains site metadata: commits, packages, content files, links, build outputs, search rows, and pipeline receipts.
 
-## Content above config above code
+{{ flow(steps="Build:Rust CLI renders the site|Generate:uv script writes site.ddb|Ship:static hosting serves HTML and data|Query:DuckDB-Wasm runs in the browser", caption="Local pipeline. Static artifact. Browser query.") }}
 
-The point is still layers:
+## Current slice
 
-- **Content**: Markdown owns the page title, description, and explanation.
-- **Config**: TOML owns sources, queries, panels, table columns, runtime assets, and knobs.
-- **Code**: Python, SQL, HTML, CSS, and JavaScript do the machinery work.
+{% tree(caption="The zorto.dev data-app files today.") %}
+website/
+  bin/build-meta  [uv script]
+  data/meta.toml  [pipeline config]
+  data/analytics.toml  [dashboard config]
+  static/data/site.ddb  [public DuckDB file]
+  static/data/analytics-dashboard.json  [runtime manifest]
+  static/js/analytics-dashboard.js  [browser app]
+  content/analytics/_index.md  [page]
+{% end %}
 
-That boundary matters because it gives humans a stable surface to edit and gives agents a strict architecture to work inside.
+The dashboard page is a thin shell. On click it lazy-loads [DuckDB-Wasm](https://duckdb.org/docs/current/clients/wasm/overview) and [Plotly.js](https://plotly.com/javascript/), fetches `/data/site.ddb`, attaches it read-only, runs configured SQL, then renders charts and tables.
 
-## What changed
+Search uses the same database. That matters more than the dashboard itself: Zorto can ship one public data artifact and let different browser surfaces query it.
 
-The website now has an `/analytics/` page. The shell is static HTML. When you click the load button, it lazy-loads DuckDB-Wasm and Plotly, fetches `/data/site.ddb`, attaches it read-only in the browser, and renders the dashboard locally.
+One panel is just SQL over the attached database:
 
-The metadata pipeline lives in `website/bin/build-meta`. It runs as a self-contained `uv` script, uses DuckDB, runs a timed current-code Zorto build through the Rust CLI, and writes `website/static/data/site.ddb` only after generation succeeds.
+```sql
+SELECT kind, count(*) AS files, sum(bytes) AS bytes
+FROM site.main.build_outputs
+GROUP BY kind
+ORDER BY bytes DESC;
+```
 
-The pipeline now has a manifest too: `website/data/meta.toml`. That file owns the database path, build output path, collection limits, content include/exclude rules, privacy checks, and the build command. The script is the executor; the manifest is the intent.
+## Layers
 
-## Receipts, not magic
+{{ layers(items="Content:Markdown owns pages and explanations:website/content|Config:TOML owns sources, limits, panels, queries:website/data|Code:Rust, Python, SQL, HTML, CSS, and JS do the work:crates + pipelines + static/js", caption="The editing contract stays small.") }}
 
-The database includes a `pipeline_steps` table. Every generation records what ran, when it started, when it finished, how long it took, what kind of step it was, and how many rows or files it produced.
+This follows the separation I want for Zorto:
 
-That is the shape I want for Zorto data work: run locally, write durable artifacts, leave receipts.
+- Content: Markdown owns the page.
+- Config: TOML owns the data app shape.
+- Code: Rust, Python, SQL, HTML, CSS, and JavaScript handle execution.
 
-## Static still means static
+Humans get stable files to edit. Agents get boundaries. The repo stays legible.
 
-Shipping a `.ddb` file does not make the site dynamic in the server sense. Static hosting still serves files. The server does not run application code, query a database, or need a private process.
+## Links
 
-The browser can do more now because DuckDB-Wasm is good enough to make local querying boring. That is the unlock.
+<div class="data-post-link-grid" aria-label="Implementation links">
+  <a href="/analytics/">
+    <span>Dashboard</span>
+    <strong>/analytics/</strong>
+  </a>
+  <a href="/data/site.ddb">
+    <span>Database</span>
+    <strong>/data/site.ddb</strong>
+  </a>
+  <a href="/data/analytics-dashboard.json">
+    <span>Manifest</span>
+    <strong>analytics-dashboard.json</strong>
+  </a>
+  <a href="https://github.com/dkdc-io/zorto/blob/main/website/bin/build-meta">
+    <span>Pipeline</span>
+    <strong>website/bin/build-meta</strong>
+  </a>
+  <a href="https://github.com/dkdc-io/zorto/blob/main/website/data/meta.toml">
+    <span>Metadata config</span>
+    <strong>website/data/meta.toml</strong>
+  </a>
+  <a href="https://github.com/dkdc-io/zorto/blob/main/website/data/analytics.toml">
+    <span>Dashboard config</span>
+    <strong>website/data/analytics.toml</strong>
+  </a>
+</div>
 
-## What is deliberately not done
+## Implementation
 
-This is a zorto.dev prototype, not a public Zorto API yet.
+`website/bin/build-meta` is a self-contained `uv` script. It uses DuckDB, runs a timed current-code Zorto build through the Rust CLI, performs privacy checks, writes a temporary database, validates it, then atomically replaces `website/static/data/site.ddb`.
 
-Search now reads from `site.ddb` too. There is no `[data]` config in Zorto core. There is no automatic data pipeline hook in `zorto build`. There is no remote database story in this pass. DuckDB-Wasm and Plotly are pinned CDN-loaded runtime assets for now; vendoring and offline packaging need an explicit decision later.
+`website/data/meta.toml` owns the pipeline settings: output path, build output directory, collection limits, content include and exclude rules, privacy checks, and the build command.
 
-That restraint is the important part. Prove the pattern on the website, make it boring, then promote the stable pieces into Zorto.
+`website/data/analytics.toml` owns the dashboard: views, panels, KPIs, SQL queries, table columns, and runtime assets.
 
-## Where this is going
+The database includes `pipeline_steps`, so generation leaves receipts: step name, kind, status, duration, output count, command, and details.
 
-Zorto can become a data app builder without becoming a traditional app framework.
+## The app surface
 
-Run pipelines locally. Use Python through `uv`, SQL through DuckDB, Rust for the site generator, HTML/CSS/JavaScript for the interface. Ship the data beside the site. Let agents help with the code, but keep the human-editable contract in Markdown and TOML.
+A dashboard is data plus frontend.
 
-That is the next version of Zorto I want to build toward.
+Python is good for data work: pulls, transforms, validation, orchestration. Many Python dashboard tools eventually emit JavaScript anyway. Zorto keeps the split direct:
+
+- Build data locally with `uv`, Python, and DuckDB.
+- Ship `.ddb` files beside static HTML.
+- Render the interface with HTML, CSS, and JavaScript.
+- Query in the browser with DuckDB-Wasm when embedded data is enough.
+- Use remote DuckDB when live data is worth it.
+
+That can stay static or grow into dynamic browser interfaces. The default remains standards first: files, SQL, HTML, CSS, JavaScript, and Rust where the generator needs to be solid.
+
+## Boundaries
+
+This is a zorto.dev implementation, not a public Zorto data API.
+
+There is no `[data]` config in Zorto core yet. There is no automatic pipeline hook in `zorto build`. DuckDB-Wasm and Plotly are pinned CDN-loaded runtime assets for now.
+
+## Next
+
+- Promote the stable pieces into Zorto after zorto.dev proves them.
+- Keep `uv` as the local Python orchestration layer.
+- Keep DuckDB as the local database layer.
+- Use DuckDB's beta [Quack protocol](https://duckdb.org/quack/) for remote DuckDB when live access is useful.
+- Use [DuckLake](https://ducklake.select/) when the data wants lakehouse-style partitioning instead of a single DuckDB database file.
+
+Zorto remains an AI-native static site generator with executable code blocks. The `& more` is now visible: data apps built from small files, local pipelines, and browser-native interfaces.
